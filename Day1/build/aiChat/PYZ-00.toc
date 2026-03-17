@@ -1,4 +1,4 @@
-('d:\\Yandex.Disk\\Docs\\AI\\AI Advent '
+('d:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent '
  'Challenge\\Day1\\build\\aiChat\\PYZ-00.pyz',
  [('__future__',
    'C:\\Program '

@@ -33,6 +33,7 @@ DEFAULT_CONFIG = {
     "provider": "OpenAI",
     "base_url": OPENAI_BASE_URL,
     "model": "gpt-4o-mini",
+    "window_geometry": "1000x700+100+100",
 }
 
 
@@ -44,11 +45,18 @@ class ChatApp(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self.title("AI Chat")
-        self.geometry("1000x700")
-        self.minsize(900, 650)
+        
+        self.config_data = self.load_config()
+
+        self.geometry(self.config_data.get("window_geometry", "1000x700+100+100"))
+        
+        self.minsize(700, 650)
+        
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
 
         self.messages = []
-        self.config_data = self.load_config()
+
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -61,7 +69,8 @@ class ChatApp(ctk.CTk):
 
         self.build_chat_tab()
         self.build_settings_tab()
-
+        
+                
         self.current_model_label.configure(
             text=f"{self.config_data['provider']} / {self.config_data['model']}"
         )
@@ -69,7 +78,14 @@ class ChatApp(ctk.CTk):
         self.append_chat(
             "Система",
             "Приложение запущено. Введите сообщение или откройте вкладку «Настройки»."
+            
         )
+        
+        
+
+    def restore_window_geometry(self):
+        geometry = self.config_data.get("window_geometry", "1000x700+100+100")
+        self.geometry(geometry)
 
     def detect_provider_by_model(self, model: str) -> str:
         for provider, models in MODEL_GROUPS.items():
@@ -112,11 +128,17 @@ class ChatApp(ctk.CTk):
                     "provider": provider,
                     "base_url": expected_base_url,
                     "model": model,
+                    "window_geometry": data.get(
+                        "window_geometry",
+                        DEFAULT_CONFIG["window_geometry"]
+                    )
                 }
             except Exception:
                 return DEFAULT_CONFIG.copy()
 
         return DEFAULT_CONFIG.copy()
+
+
 
     def save_config(self):
         provider = self.provider_menu.get()
@@ -396,6 +418,12 @@ class ChatApp(ctk.CTk):
             return str(content)
         except Exception:
             return ""
+    
+    def on_closing(self):
+        self.config_data["window_geometry"] = self.geometry()
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.config_data, f, indent=2)
+        self.destroy()
 
     def extract_error_text(self, response):
         try:
@@ -446,6 +474,8 @@ class ChatApp(ctk.CTk):
                     )
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Ошибка подключения", str(e)))
+
+    
 
         threading.Thread(target=worker, daemon=True).start()
 
