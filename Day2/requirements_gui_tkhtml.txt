@@ -1,0 +1,4 @@
+customtkinter==5.2.2
+requests==2.32.3
+markdown==3.8.2
+tkhtmlview==0.3.2

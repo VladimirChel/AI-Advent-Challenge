@@ -107,6 +107,23 @@ class LLMRequest(BaseModel):
     user_id: str | None = Field(default=None, max_length=200)
     metadata: dict[str, Any] = Field(default_factory=dict)
     validation: ResponseValidationRules | None = None
+    stop: list[str] | None = Field(default=None, max_length=16)    
+
+    @field_validator("stop")
+    @classmethod
+    def validate_stop(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+
+        cleaned = [item.strip() for item in value if item and item.strip()]
+        if len(cleaned) != len(value):
+            raise ValueError("stop must not contain empty strings")
+
+        for item in cleaned:
+            if len(item) > 200:
+                raise ValueError("each stop sequence must be <= 200 characters")
+
+        return cleaned
 
     @field_validator("temperature")
     @classmethod
@@ -293,6 +310,7 @@ def generate(payload: LLMRequest) -> LLMResponse:
         "top_p": payload.top_p,
         "presence_penalty": payload.presence_penalty,
         "frequency_penalty": payload.frequency_penalty,
+        "stop": payload.stop,
         "user_id": payload.user_id,
         "metadata": payload.metadata,
         "messages_count": len(payload.messages),
@@ -312,6 +330,7 @@ def generate(payload: LLMRequest) -> LLMResponse:
             top_p=payload.top_p,
             presence_penalty=payload.presence_penalty,
             frequency_penalty=payload.frequency_penalty,
+            stop=payload.stop,
             user=payload.user_id,
         )
 

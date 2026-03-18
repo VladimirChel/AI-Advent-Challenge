@@ -3,7 +3,9 @@ import threading
 from datetime import datetime
 
 import customtkinter as ctk
+import markdown
 import requests
+from tkhtmlview import HTMLScrolledText
 from tkinter import messagebox
 
 
@@ -24,9 +26,11 @@ class LLMClientApp(ctk.CTk):
         super().__init__()
 
         self.title("LLM Gateway Client")
-        self.geometry("1240x820")
+        self.geometry("1280x840")
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
+
+        self.show_hints_var = ctk.BooleanVar(value=False)
 
         self._build_ui()
 
@@ -35,7 +39,7 @@ class LLMClientApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.sidebar = ctk.CTkScrollableFrame(self, width=420, corner_radius=0)
+        self.sidebar = ctk.CTkScrollableFrame(self, width=335, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         self.sidebar.grid_columnconfigure(0, weight=1)
 
@@ -49,15 +53,24 @@ class LLMClientApp(ctk.CTk):
         ctk.CTkLabel(
             self.sidebar,
             text="Параметры запроса",
-            font=ctk.CTkFont(size=14, weight="bold")
-        ).grid(row=row, column=0, sticky="w", padx=16, pady=(2, 3))
+            font=ctk.CTkFont(size=20, weight="bold")
+        ).grid(row=row, column=0, sticky="w", padx=12, pady=(10, 4))
+        row += 1
+
+        self.hints_checkbox = ctk.CTkCheckBox(
+            self.sidebar,
+            text="Показывать подсказки",
+            variable=self.show_hints_var,
+            command=self.refresh_hints_visibility
+        )
+        self.hints_checkbox.grid(row=row, column=0, sticky="w", padx=12, pady=(0, 6))
         row += 1
 
         self.endpoint_entry = self._labeled_entry(
             self.sidebar,
             row,
             "Адрес API (/generate)",
-            "URL эндпоинта сервера. Пример: http://127.0.0.1:8000/generate",
+            "Пример: http://127.0.0.1:8000/generate",
             "http://127.0.0.1:8000/generate"
         )
         row += 1
@@ -66,7 +79,7 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Модель",
-            "Выберите модель в формате provider/model",
+            "Формат provider/model",
             MODEL_OPTIONS,
             "openai/gpt-4o-mini"
         )
@@ -76,7 +89,7 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Temperature",
-            "Степень случайности ответа. Обычно 0.0–0.3 для точности, 0.7+ для креатива",
+            "0.0–0.3 для точности, 0.7+ для креатива",
             "0.2"
         )
         row += 1
@@ -85,7 +98,7 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Max tokens",
-            "Максимальная длина ответа модели в токенах",
+            "Максимальная длина ответа",
             "300"
         )
         row += 1
@@ -94,7 +107,7 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Top P",
-            "Альтернативный способ контроля разнообразия. Обычно оставляют 1.0",
+            "Обычно оставляют 1.0",
             "1.0"
         )
         row += 1
@@ -103,7 +116,7 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Presence penalty",
-            "Штраф за повторение уже затронутых тем. Диапазон обычно от -2 до 2",
+            "Штраф за повтор тем",
             "0.0"
         )
         row += 1
@@ -112,7 +125,7 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Frequency penalty",
-            "Штраф за частые повторы слов и фраз. Диапазон обычно от -2 до 2",
+            "Штраф за повторы слов",
             "0.0"
         )
         row += 1
@@ -121,32 +134,23 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "User ID",
-            "Произвольный идентификатор пользователя или сессии",
-            ""
-        )
-        row += 1
-
-        self.stop_sequences_entry = self._labeled_entry(
-            self.sidebar,
-            row,
-            "Stop sequences",
-            "Разделяй через ;",
+            "Идентификатор пользователя или сессии",
             ""
         )
         row += 1
 
         ctk.CTkLabel(
             self.sidebar,
-            text="Правила проверки ответа",
-            font=ctk.CTkFont(size=14, weight="bold")
-        ).grid(row=row, column=0, sticky="w", padx=16, pady=(4, 2))
+            text="Проверка ответа",
+            font=ctk.CTkFont(size=17, weight="bold")
+        ).grid(row=row, column=0, sticky="w", padx=12, pady=(10, 4))
         row += 1
 
         self.min_length_entry = self._labeled_entry(
             self.sidebar,
             row,
-            "Минимальная длина ответа",
-            "Минимальное число символов в ответе",
+            "Мин. длина ответа",
+            "Минимум символов",
             ""
         )
         row += 1
@@ -155,7 +159,7 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Обязательные фразы",
-            "Фразы, которые должны быть в ответе. Разделяйте через ;",
+            "Разделяйте через ;",
             ""
         )
         row += 1
@@ -164,24 +168,25 @@ class LLMClientApp(ctk.CTk):
             self.sidebar,
             row,
             "Запрещённые фразы",
-            "Фразы, которых не должно быть в ответе. Разделяйте через ;",
+            "Разделяйте через ;",
             ""
         )
         row += 1
 
         self.require_json_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(
+        self.require_json_checkbox = ctk.CTkCheckBox(
             self.sidebar,
-            text="Проверять, что ответ является валидным JSON",
+            text="Ответ должен быть валидным JSON",
             variable=self.require_json_var
-        ).grid(row=row, column=0, sticky="w", padx=16, pady=(4, 6))
+        )
+        self.require_json_checkbox.grid(row=row, column=0, sticky="w", padx=12, pady=(4, 8))
         row += 1
 
         ctk.CTkLabel(
             self.main,
             text="Сообщения для модели",
             font=ctk.CTkFont(size=22, weight="bold")
-        ).grid(row=0, column=0, sticky="w", padx=16, pady=(4, 6))
+        ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 8))
 
         self.prompts_frame = ctk.CTkFrame(self.main)
         self.prompts_frame.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 10))
@@ -190,20 +195,20 @@ class LLMClientApp(ctk.CTk):
 
         ctk.CTkLabel(
             self.prompts_frame,
-            text="System prompt — системная инструкция для модели"
-        ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 4))
+            text="System prompt — системная инструкция"
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(8, 3))
 
         ctk.CTkLabel(
             self.prompts_frame,
             text="User prompt — запрос пользователя"
-        ).grid(row=0, column=1, sticky="w", padx=12, pady=(10, 4))
+        ).grid(row=0, column=1, sticky="w", padx=12, pady=(8, 3))
 
-        self.system_text = ctk.CTkTextbox(self.prompts_frame, height=180, wrap="word")
-        self.system_text.grid(row=1, column=0, sticky="nsew", padx=(12, 6), pady=(0, 12))
+        self.system_text = ctk.CTkTextbox(self.prompts_frame, height=170, wrap="word")
+        self.system_text.grid(row=1, column=0, sticky="nsew", padx=(12, 6), pady=(0, 10))
         self.system_text.insert("1.0", "Отвечай кратко и по делу.")
 
-        self.user_text = ctk.CTkTextbox(self.prompts_frame, height=180, wrap="word")
-        self.user_text.grid(row=1, column=1, sticky="nsew", padx=(6, 12), pady=(0, 12))
+        self.user_text = ctk.CTkTextbox(self.prompts_frame, height=170, wrap="word")
+        self.user_text.grid(row=1, column=1, sticky="nsew", padx=(6, 12), pady=(0, 10))
         self.user_text.insert("1.0", "Объясни, что такое FastAPI.")
 
         self.actions_frame = ctk.CTkFrame(self.main)
@@ -212,7 +217,7 @@ class LLMClientApp(ctk.CTk):
 
         self.check_health_button = ctk.CTkButton(
             self.actions_frame,
-            text="Проверить сервер (/health)",
+            text="Проверить /health",
             command=self.check_health
         )
         self.check_health_button.grid(row=0, column=0, sticky="ew", padx=(0, 6), pady=8)
@@ -220,14 +225,14 @@ class LLMClientApp(ctk.CTk):
         self.send_button = ctk.CTkButton(
             self.actions_frame,
             text="Отправить запрос",
-            height=42,
+            height=40,
             command=self.send_request
         )
         self.send_button.grid(row=0, column=1, sticky="ew", padx=6, pady=8)
 
         self.clear_button = ctk.CTkButton(
             self.actions_frame,
-            text="Очистить поля ответа",
+            text="Очистить ответ",
             fg_color="gray30",
             hover_color="gray20",
             command=self.clear_output
@@ -245,8 +250,8 @@ class LLMClientApp(ctk.CTk):
         self.tabs.add("Метаданные")
         self.tabs.add("JSON запроса")
 
-        self.response_text = ctk.CTkTextbox(self.tabs.tab("Ответ"), wrap="word")
-        self.response_text.pack(fill="both", expand=True, padx=10, pady=10)
+        self.response_html = HTMLScrolledText(self.tabs.tab("Ответ"), html="<p>Здесь появится ответ модели.</p>")
+        self.response_html.pack(fill="both", expand=True, padx=10, pady=10)
 
         self.meta_text = ctk.CTkTextbox(self.tabs.tab("Метаданные"), wrap="word")
         self.meta_text.pack(fill="both", expand=True, padx=10, pady=10)
@@ -254,6 +259,7 @@ class LLMClientApp(ctk.CTk):
         self.request_json_text = ctk.CTkTextbox(self.tabs.tab("JSON запроса"), wrap="word")
         self.request_json_text.pack(fill="both", expand=True, padx=10, pady=10)
 
+        self.refresh_hints_visibility()
         self.bind_all("<MouseWheel>", self._on_mousewheel_windows)
 
     def _on_mousewheel_windows(self, event):
@@ -266,20 +272,25 @@ class LLMClientApp(ctk.CTk):
 
     def _labeled_entry(self, parent, row, label, hint, default_value):
         wrapper = ctk.CTkFrame(parent, fg_color="transparent")
-        wrapper.grid(row=row, column=0, sticky="ew", padx=16, pady=(1, 2))
+        wrapper.grid(row=row, column=0, sticky="ew", padx=12, pady=(2, 3))
         wrapper.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(wrapper, text=label, font=ctk.CTkFont(weight="bold")).grid(
-            row=0, column=0, sticky="w"
-        )
         ctk.CTkLabel(
+            wrapper,
+            text=label,
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).grid(row=0, column=0, sticky="w")
+
+        hint_label = ctk.CTkLabel(
             wrapper,
             text=hint,
             justify="left",
-            wraplength=400,
-            text_color=("gray35", "gray70"),
-            font=ctk.CTkFont(size=11)
-        ).grid(row=1, column=0, sticky="w", pady=(0, 4))
+            wraplength=250,
+            font=ctk.CTkFont(size=11),
+            text_color=("gray35", "gray70")
+        )
+        hint_label.grid(row=1, column=0, sticky="w", pady=(0, 2))
+        wrapper.hint_label = hint_label
 
         entry = ctk.CTkEntry(wrapper, height=28)
         entry.grid(row=2, column=0, sticky="ew")
@@ -289,29 +300,45 @@ class LLMClientApp(ctk.CTk):
 
     def _labeled_combobox(self, parent, row, label, hint, values, default_value):
         wrapper = ctk.CTkFrame(parent, fg_color="transparent")
-        wrapper.grid(row=row, column=0, sticky="ew", padx=16, pady=(2, 3))
+        wrapper.grid(row=row, column=0, sticky="ew", padx=12, pady=(2, 3))
         wrapper.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(wrapper, text=label, font=ctk.CTkFont(weight="bold")).grid(
-            row=0, column=0, sticky="w"
-        )
         ctk.CTkLabel(
+            wrapper,
+            text=label,
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).grid(row=0, column=0, sticky="w")
+
+        hint_label = ctk.CTkLabel(
             wrapper,
             text=hint,
             justify="left",
-            wraplength=330,
+            wraplength=250,
+            font=ctk.CTkFont(size=11),
             text_color=("gray35", "gray70")
-        ).grid(row=1, column=0, sticky="w", pady=(0, 4))
+        )
+        hint_label.grid(row=1, column=0, sticky="w", pady=(0, 2))
+        wrapper.hint_label = hint_label
 
-        combo = ctk.CTkComboBox(wrapper, values=values)
+        combo = ctk.CTkComboBox(wrapper, values=values, height=28)
         combo.grid(row=2, column=0, sticky="ew")
         combo.set(default_value)
         return combo
 
+    def refresh_hints_visibility(self):
+        show = self.show_hints_var.get()
+        for child in self.sidebar.winfo_children():
+            hint_label = getattr(child, "hint_label", None)
+            if hint_label is not None:
+                if show:
+                    hint_label.grid()
+                else:
+                    hint_label.grid_remove()
+
     def clear_output(self):
-        self.response_text.delete("1.0", "end")
         self.meta_text.delete("1.0", "end")
         self.request_json_text.delete("1.0", "end")
+        self.response_html.set_html("<p>Поле ответа очищено.</p>")
         self.status_var.set("Поля ответа очищены")
 
     def set_busy(self, busy: bool, text: str):
@@ -342,15 +369,6 @@ class LLMClientApp(ctk.CTk):
             "presence_penalty": float(self.presence_penalty_entry.get().strip() or "0.0"),
             "frequency_penalty": float(self.frequency_penalty_entry.get().strip() or "0.0"),
         }
-
-        stop_sequences = [
-            s.strip()
-            for s in self.stop_sequences_entry.get().split(";")
-            if s.strip()
-        ]
-
-        if stop_sequences:
-            payload["stop"] = stop_sequences
 
         user_id = self.user_id_entry.get().strip()
         if user_id:
@@ -383,6 +401,21 @@ class LLMClientApp(ctk.CTk):
             payload["validation"] = validation
 
         return payload
+
+    def render_response(self, content: str):
+        text = content or "<пустой ответ>"
+        html = markdown.markdown(
+            text,
+            extensions=["fenced_code", "tables", "nl2br", "sane_lists"]
+        )
+        html = f"""
+        <html>
+          <body style="font-family: Segoe UI, Arial, sans-serif; padding: 8px;">
+            {html}
+          </body>
+        </html>
+        """
+        self.response_html.set_html(html)
 
     def check_health(self):
         def worker():
@@ -451,8 +484,7 @@ class LLMClientApp(ctk.CTk):
                     "headers": dict(response.headers),
                 }
 
-                self.after(0, lambda: self.response_text.delete("1.0", "end"))
-                self.after(0, lambda: self.response_text.insert("1.0", content or "<пустой ответ>"))
+                self.after(0, lambda: self.render_response(content))
                 self.after(0, lambda: self.meta_text.delete("1.0", "end"))
                 self.after(0, lambda: self.meta_text.insert("1.0", json.dumps(meta, ensure_ascii=False, indent=2)))
                 self.after(0, lambda: self.tabs.set("Ответ"))
