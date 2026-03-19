@@ -322,18 +322,23 @@ def generate(payload: LLMRequest) -> LLMResponse:
     )
 
     try:
-        response = client.chat.completions.create(
-            model=payload.model,
-            messages=[msg.model_dump() for msg in payload.messages],
-            temperature=payload.temperature,
-            max_tokens=payload.max_tokens,
-            top_p=payload.top_p,
-            presence_penalty=payload.presence_penalty,
-            frequency_penalty=payload.frequency_penalty,
-            stop=payload.stop,
-            user=payload.user_id,
-        )
+        params = {
+            "model": payload.model,
+            "messages": [msg.model_dump() for msg in payload.messages],
+            "temperature": payload.temperature,
+            "top_p": payload.top_p,
+            "presence_penalty": payload.presence_penalty,
+            "frequency_penalty": payload.frequency_penalty,
+            "stop": payload.stop,
+            "user": payload.user_id,
+}
+        if "gpt-5" in payload.model:
+            params["max_completion_tokens"] = payload.max_tokens
+        else:
+            params["max_tokens"] = payload.max_tokens
 
+        response = client.chat.completions.create(**params)
+        
         latency_ms = int((time.perf_counter() - started) * 1000)
         content, finish_reason = extract_text_from_chat_completion(response)
         validation_result = validate_output(content, payload.validation)

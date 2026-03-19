@@ -10,6 +10,7 @@ from tkinter import messagebox
 
 
 MODEL_OPTIONS = [
+    "openai/gpt-5-mini",
     "openai/gpt-4o-mini",
     "openai/gpt-4o",
     "openai/gpt-4.1-mini",
@@ -81,7 +82,7 @@ class LLMClientApp(ctk.CTk):
             "Модель",
             "Формат provider/model",
             MODEL_OPTIONS,
-            "openai/gpt-4o-mini"
+            "openai/gpt-5-mini"
         )
         row += 1
 
@@ -99,7 +100,7 @@ class LLMClientApp(ctk.CTk):
             row,
             "Max tokens",
             "Максимальная длина ответа",
-            "300"
+            "2000"
         )
         row += 1
 

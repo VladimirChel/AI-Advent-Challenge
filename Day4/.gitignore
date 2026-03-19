@@ -1,6 +1,6 @@
 __pycache__/
+logs/
+Temp/
 config.json
 .env
 *.pyc
-logs/
-reports/
