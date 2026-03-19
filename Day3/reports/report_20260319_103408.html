@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #f6f7fb; color: #1d2433; }
+        h1, h2, h3 { margin-top: 0; }
+        .container { max-width: 1280px; margin: 0 auto; }
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+        .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .meta div { background: #eef2ff; padding: 12px; border-radius: 12px; }
+        pre { white-space: pre-wrap; word-wrap: break-word; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 12px; overflow-x: auto; }
+        details { margin: 12px 0; }
+        .analysis { line-height: 1.6; }
+        .charts { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .chart-box { height: 360px; }
+        .tech-table { width: 100%; border-collapse: collapse; margin: 12px 0 16px; background: #fff; }
+        .tech-table th, .tech-table td { border: 1px solid #d8ddea; padding: 8px 10px; text-align: left; vertical-align: top; }
+        .tech-table th { background: #eef2ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section class="card">
+            <h1>Отчёт по 4 стратегиям запроса к LLM</h1>
+            <div class="meta">
+                <div><strong>Время:</strong><br>2026-03-19 10:34:08</div>
+                <div><strong>Модель:</strong><br>openai/gpt-4o-mini</div>
+                <div><strong>Количество сценариев:</strong><br>4</div>
+            </div>
+            <h2>Исходный вопрос</h2>
+            <pre>Это тест, напиши список из 4 пунктов</pre>
+        </section>
+
+        <section class="card">
+            <h2>Графики</h2>
+            <div class="charts">
+                <div>
+                    <h3>Время ответа</h3>
+                    <div class="chart-box"><canvas id="timeChart"></canvas></div>
+                </div>
+                <div>
+                    <h3>Токены</h3>
+                    <div class="chart-box"><canvas id="tokensChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        
+        <section class="card">
+            <h2>1. Прямой ответ</h2>
+            
+            <h3>Ответ</h3>
+            <pre>Конечно! Вот список из 4 пунктов:
+
+1. Прочитать книгу.
+2. Прогуляться на свежем воздухе.
+3. Приготовить новое блюдо.
+4. Посмотреть фильм или сериал.</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.3</td></tr><tr><td>max_tokens</td><td>1200</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>2195.0</td></tr><tr><td>response_chars</td><td>148</td></tr><tr><td>response_words</td><td>23</td></tr><tr><td>prompt_tokens</td><td>18</td></tr><tr><td>completion_tokens</td><td>47</td></tr><tr><td>total_tokens</td><td>65</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>f651bd22-5f2f-49a9-b8f4-427d3a8b664c</td></tr><tr><td>gateway_latency_ms</td><td>2167</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Это тест, напиши список из 4 пунктов&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.3,
+  &quot;max_tokens&quot;: 1200,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;f651bd22-5f2f-49a9-b8f4-427d3a8b664c&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T05:33:36.802487+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;Конечно! Вот список из 4 пунктов:\n\n1. Прочитать книгу.\n2. Прогуляться на свежем воздухе.\n3. Приготовить новое блюдо.\n4. Посмотреть фильм или сериал.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 2167,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 18,
+    &quot;completion_tokens&quot;: 47,
+    &quot;total_tokens&quot;: 65
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DL0IhAOebhkr5IQCwB4pX6fgmHS6F&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card">
+            <h2>2. Решай пошагово</h2>
+            <details><summary>Использованный system prompt</summary><pre>Ты полезный ассистент. Решай задачу пошагово, явно выделяя этапы анализа, но финальный ответ делай практичным и понятным.</pre></details>
+            <h3>Ответ</h3>
+            <pre>Конечно! Вот список из 4 пунктов:
+
+1. Определение цели: Четко сформулируйте, что вы хотите достичь.
+2. Сбор информации: Исследуйте необходимые данные и ресурсы для достижения цели.
+3. Планирование действий: Разработайте пошаговый план, чтобы достичь поставленной цели.
+4. Оценка результатов: После выполнения действий проанализируйте, что сработало, а что нет, и сделайте выводы для будущих действий.</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.3</td></tr><tr><td>max_tokens</td><td>1200</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>3653.28</td></tr><tr><td>response_chars</td><td>400</td></tr><tr><td>response_words</td><td>54</td></tr><tr><td>prompt_tokens</td><td>56</td></tr><tr><td>completion_tokens</td><td>106</td></tr><tr><td>total_tokens</td><td>162</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>676522ee-0b4d-4cbf-8c61-f6abd3c722d8</td></tr><tr><td>gateway_latency_ms</td><td>3645</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Ты полезный ассистент. Решай задачу пошагово, явно выделяя этапы анализа, но финальный ответ делай практичным и понятным.&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Это тест, напиши список из 4 пунктов&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.3,
+  &quot;max_tokens&quot;: 1200,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;676522ee-0b4d-4cbf-8c61-f6abd3c722d8&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T05:33:40.456566+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;Конечно! Вот список из 4 пунктов:\n\n1. Определение цели: Четко сформулируйте, что вы хотите достичь.\n2. Сбор информации: Исследуйте необходимые данные и ресурсы для достижения цели.\n3. Планирование действий: Разработайте пошаговый план, чтобы достичь поставленной цели.\n4. Оценка результатов: После выполнения действий проанализируйте, что сработало, а что нет, и сделайте выводы для будущих действий.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 3645,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 56,
+    &quot;completion_tokens&quot;: 106,
+    &quot;total_tokens&quot;: 162
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DL0IjyUu2v37clBDPXK3I8HdVVuBb&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card">
+            <h2>3. Через промпт, предложенный нейросетью</h2>
+            <details><summary>Использованный system prompt</summary><pre>Пожалуйста, предоставь конкретную тему или категорию, по которой ты хочешь получить список из 4 пунктов.</pre></details>
+            <h3>Ответ</h3>
+            <pre>Конечно! Вот пример списка из 4 пунктов на тему &quot;Польза физической активности&quot;:
+
+1. Улучшение сердечно-сосудистой системы.
+2. Повышение уровня энергии и выносливости.
+3. Снижение стресса и улучшение настроения.
+4. Поддержание здорового веса и улучшение обмена веществ.
+
+Если нужна другая тема, дай знать!</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.3</td></tr><tr><td>max_tokens</td><td>1200</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>2321.11</td></tr><tr><td>response_chars</td><td>304</td></tr><tr><td>response_words</td><td>42</td></tr><tr><td>prompt_tokens</td><td>48</td></tr><tr><td>completion_tokens</td><td>85</td></tr><tr><td>total_tokens</td><td>133</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>051f3b7b-0cde-41e2-b4ca-0a66a9d41e56</td></tr><tr><td>gateway_latency_ms</td><td>2314</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Пожалуйста, предоставь конкретную тему или категорию, по которой ты хочешь получить список из 4 пунктов.&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Это тест, напиши список из 4 пунктов&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.3,
+  &quot;max_tokens&quot;: 1200,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;051f3b7b-0cde-41e2-b4ca-0a66a9d41e56&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T05:33:43.903048+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;Конечно! Вот пример списка из 4 пунктов на тему \&quot;Польза физической активности\&quot;:\n\n1. Улучшение сердечно-сосудистой системы.\n2. Повышение уровня энергии и выносливости.\n3. Снижение стресса и улучшение настроения.\n4. Поддержание здорового веса и улучшение обмена веществ.\n\nЕсли нужна другая тема, дай знать!&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 2314,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 48,
+    &quot;completion_tokens&quot;: 85,
+    &quot;total_tokens&quot;: 133
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DL0InuaMgKlxdg5aA2tWxqw30tXrb&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card">
+            <h2>4. Группа экспертов</h2>
+            <details><summary>Использованный system prompt</summary><pre>Ты симулируешь мини-дискуссию группы экспертов:
+1) Аналитик — структурирует задачу и риски.
+2) Инженер — предлагает практическое решение.
+3) Критик — указывает слабые места и ограничения.
+4) Модератор — собирает общий итог и рекомендацию.
+Ответ оформи по ролям, а в конце дай согласованный вывод.</pre></details>
+            <h3>Ответ</h3>
+            <pre>**Аналитик:**  
+1. Определить цель теста и его параметры.
+2. Оценить риски, связанные с проведением теста, такие как возможные недочеты в данных.
+3. Установить критерии оценки результатов теста.
+4. Выявить целевую аудиторию для тестирования.
+
+**Инженер:**  
+1. Разработать протокол тестирования, включая необходимые инструменты и технологии.
+2. Создать безопасную среду для тестирования, чтобы минимизировать риски.
+3. Обеспечить сбор и анализ данных в режиме реального времени.
+4. Подготовить систему для обработки результатов и предоставления отчетов.
+
+**Критик:**  
+1. Проверить, насколько четко определены цели теста, чтобы избежать неоправданных ожиданий.
+2. Оценить возможные технические ограничения, которые могут повлиять на результаты.
+3. Убедиться в наличии достаточной выборки для получения репрезентативных данных.
+4. Рассмотреть потенциальные предвзятости в процессе тестирования и их влияние на выводы.
+
+**Модератор:**  
+Итак, мы обсудили ключевые аспекты теста. Основные выводы:
+- Необходимо четко сформулировать цели и методы тестирования.
+- Важно создать безопасную и контролируемую среду для получения достоверных данных.
+- Следует учитывать ограничения и риски, чтобы минимизировать их влияние на результаты.
+- Рекомендуется проводить тестирование с достаточной выборкой для получения надежных выводов.
+
+**Согласованный вывод:**  
+Для успешного проведения теста необходимо четко определить цели и параметры, разработать надежный протокол, учесть возможные ограничения и риски, а также обеспечить достаточную выборку для анализа результатов.</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.5</td></tr><tr><td>max_tokens</td><td>1800</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>9301.07</td></tr><tr><td>response_chars</td><td>1559</td></tr><tr><td>response_words</td><td>194</td></tr><tr><td>prompt_tokens</td><td>107</td></tr><tr><td>completion_tokens</td><td>377</td></tr><tr><td>total_tokens</td><td>484</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>f7af1c88-97a1-48b1-8819-2b5687e5a0f3</td></tr><tr><td>gateway_latency_ms</td><td>9295</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Ты симулируешь мини-дискуссию группы экспертов:\n1) Аналитик — структурирует задачу и риски.\n2) Инженер — предлагает практическое решение.\n3) Критик — указывает слабые места и ограничения.\n4) Модератор — собирает общий итог и рекомендацию.\nОтвет оформи по ролям, а в конце дай согласованный вывод.&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Это тест, напиши список из 4 пунктов&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.5,
+  &quot;max_tokens&quot;: 1800,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;f7af1c88-97a1-48b1-8819-2b5687e5a0f3&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T05:33:53.204852+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;**Аналитик:**  \n1. Определить цель теста и его параметры.\n2. Оценить риски, связанные с проведением теста, такие как возможные недочеты в данных.\n3. Установить критерии оценки результатов теста.\n4. Выявить целевую аудиторию для тестирования.\n\n**Инженер:**  \n1. Разработать протокол тестирования, включая необходимые инструменты и технологии.\n2. Создать безопасную среду для тестирования, чтобы минимизировать риски.\n3. Обеспечить сбор и анализ данных в режиме реального времени.\n4. Подготовить систему для обработки результатов и предоставления отчетов.\n\n**Критик:**  \n1. Проверить, насколько четко определены цели теста, чтобы избежать неоправданных ожиданий.\n2. Оценить возможные технические ограничения, которые могут повлиять на результаты.\n3. Убедиться в наличии достаточной выборки для получения репрезентативных данных.\n4. Рассмотреть потенциальные предвзятости в процессе тестирования и их влияние на выводы.\n\n**Модератор:**  \nИтак, мы обсудили ключевые аспекты теста. Основные выводы:\n- Необходимо четко сформулировать цели и методы тестирования.\n- Важно создать безопасную и контролируемую среду для получения достоверных данных.\n- Следует учитывать ограничения и риски, чтобы минимизировать их влияние на результаты.\n- Рекомендуется проводить тестирование с достаточной выборкой для получения надежных выводов.\n\n**Согласованный вывод:**  \nДля успешного проведения теста необходимо четко определить цели и параметры, разработать надежный протокол, учесть возможные ограничения и риски, а также обеспечить достаточную выборку для анализа результатов.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 9295,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 107,
+    &quot;completion_tokens&quot;: 377,
+    &quot;total_tokens&quot;: 484
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DL0IqWoKdeyozRDW4Q5sMHdWIIkN5&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card analysis">
+            <h2>Краткий анализ различий</h2>
+            <div><html>
+<body>
+<p>Анализ различий между четырьмя ответами на запрос пользователя о списке из 4 пунктов:</p>
+
+<ul>
+  <li><strong>Глубина:</strong>
+    <ul>
+      <li><strong>Прямой ответ:</strong> Предоставляет простой и прямолинейный список действий, без глубокой проработки.</li>
+      <li><strong>Решай пошагово:</strong> Более глубокий подход, включает этапы достижения цели, что делает ответ более структурированным.</li>
+      <li><strong>Через промпт:</strong> Предлагает конкретную тему (польза физической активности), что добавляет контекст, но не углубляется в детали.</li>
+      <li><strong>Группа экспертов:</strong> Наиболее глубокий ответ, охватывающий различные аспекты тестирования с множеством деталей и рекомендаций.</li>
+    </ul>
+  </li>
+
+  <li><strong>Точность:</strong>
+    <ul>
+      <li><strong>Прямой ответ:</strong> Точен, но общий.</li>
+      <li><strong>Решай пошагово:</strong> Точен и структурирован, подходит для планирования.</li>
+      <li><strong>Через промпт:</strong> Точен в контексте, но может быть неуместен, если пользователь не интересуется физической активностью.</li>
+      <li><strong>Группа экспертов:</strong> Высокая точность, учитывает различные аспекты и потенциальные проблемы.</li>
+    </ul>
+  </li>
+
+  <li><strong>Практичность:</strong>
+    <ul>
+      <li><strong>Прямой ответ:</strong> Практичен для быстрого выполнения.</li>
+      <li><strong>Решай пошагово:</strong> Практичен для тех, кто хочет структурированный подход.</li>
+      <li><strong>Через промпт:</strong> Практичен для тех, кто интересуется физической активностью, но может быть не универсален.</li>
+      <li><strong>Группа экспертов:</strong> Практичен для профессионалов, но может быть сложен для общего пользователя.</li>
+    </ul>
+  </li>
+
+  <li><strong>Структура:</strong>
+    <ul>
+      <li><strong>Прямой ответ:</strong> Простая структура, легко воспринимается.</li>
+      <li><strong>Решай пошагово:</strong> Четкая структура с этапами, что облегчает понимание.</li>
+      <li><strong>Через промпт:</strong> Структурирован, но менее универсален.</li>
+      <li><strong>Группа экспертов:</strong> Сложная структура с множеством уровней, требует большего внимания.</li>
+    </ul>
+  </li>
+
+  <li><strong>Ограничения:</strong>
+    <ul>
+      <li><strong>Прямой ответ:</strong> Ограничен в контексте и деталях.</li>
+      <li><strong>Решай пошагово:</strong> Может быть слишком сложным для простых запросов.</li>
+      <li><strong>Через промпт:</strong> Ограничен темой, может не подойти всем пользователям.</li>
+      <li><strong>Группа экспертов:</strong> Сложен для восприятия, требует времени на анализ.</li>
+    </ul>
+  </li>
+
+  <li><strong>Время ответа и токены:</strong>
+    <ul>
+      <li><strong>Прямой ответ:</strong> Время ответа: 2195 мс, токены: 65.</li>
+      <li><strong>Решай пошагово:</strong> Время ответа: 3653 мс, токены: 162.</li>
+      <li><strong>Через промпт:</strong> Время ответа: 2321 мс, токены: 133.</li>
+      <li><strong>Группа экспертов:</strong> Время ответа: 9301 мс, токены: 484.</li>
+    </ul>
+  </li>
+</ul>
+
+</body>
+</html></div>
+            <h3>Технические параметры анализа</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.2</td></tr><tr><td>max_tokens</td><td>1500</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>15410.7</td></tr><tr><td>response_chars</td><td>3080</td></tr><tr><td>response_words</td><td>277</td></tr><tr><td>prompt_tokens</td><td>1775</td></tr><tr><td>completion_tokens</td><td>941</td></tr><tr><td>total_tokens</td><td>2716</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>ecf4fa83-83df-4660-b093-c51d95b5610e</td></tr><tr><td>gateway_latency_ms</td><td>15402</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+        </section>
+    </div>
+    
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const labels = ["1. Прямой ответ", "2. Решай пошагово", "3. Через промпт, предложенный нейросетью", "4. Группа экспертов"];
+new Chart(document.getElementById('timeChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [{ label: 'Время ответа, мс', data: [2195, 3653, 2321, 9301] }]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+new Chart(document.getElementById('tokensChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [
+      { label: 'Prompt tokens', data: [18, 56, 48, 107] },
+      { label: 'Completion tokens', data: [47, 106, 85, 377] },
+      { label: 'Total tokens', data: [65, 162, 133, 484] }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+</script>
+
+</body>
+</html>

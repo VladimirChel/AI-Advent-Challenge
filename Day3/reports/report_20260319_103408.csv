@@ -1,0 +1,6 @@
+﻿mode,http_status,model,temperature,max_tokens,top_p,presence_penalty,frequency_penalty,response_time_ms,response_chars,response_words,prompt_tokens,completion_tokens,total_tokens,finish_reason,request_id,gateway_latency_ms
+1. Прямой ответ,200,openai/gpt-4o-mini,0.3,1200,1.0,0.0,0.0,2195.0,148,23,18,47,65,stop,f651bd22-5f2f-49a9-b8f4-427d3a8b664c,2167
+2. Решай пошагово,200,openai/gpt-4o-mini,0.3,1200,1.0,0.0,0.0,3653.28,400,54,56,106,162,stop,676522ee-0b4d-4cbf-8c61-f6abd3c722d8,3645
+"3. Через промпт, предложенный нейросетью",200,openai/gpt-4o-mini,0.3,1200,1.0,0.0,0.0,2321.11,304,42,48,85,133,stop,051f3b7b-0cde-41e2-b4ca-0a66a9d41e56,2314
+4. Группа экспертов,200,openai/gpt-4o-mini,0.5,1800,1.0,0.0,0.0,9301.07,1559,194,107,377,484,stop,f7af1c88-97a1-48b1-8819-2b5687e5a0f3,9295
+Анализ различий,200,openai/gpt-4o-mini,0.2,1500,1.0,0.0,0.0,15410.7,3080,277,1775,941,2716,stop,ecf4fa83-83df-4660-b093-c51d95b5610e,15402

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #f6f7fb; color: #1d2433; }
+        h1, h2, h3 { margin-top: 0; }
+        .container { max-width: 1280px; margin: 0 auto; }
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+        .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .meta div { background: #eef2ff; padding: 12px; border-radius: 12px; }
+        pre { white-space: pre-wrap; word-wrap: break-word; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 12px; overflow-x: auto; }
+        details { margin: 12px 0; }
+        .analysis { line-height: 1.6; }
+        .charts { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .chart-box { height: 360px; }
+        .tech-table { width: 100%; border-collapse: collapse; margin: 12px 0 16px; background: #fff; }
+        .tech-table th, .tech-table td { border: 1px solid #d8ddea; padding: 8px 10px; text-align: left; vertical-align: top; }
+        .tech-table th { background: #eef2ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section class="card">
+            <h1>Отчёт по 4 стратегиям запроса к LLM</h1>
+            <div class="meta">
+                <div><strong>Время:</strong><br>2026-03-19 09:50:18</div>
+                <div><strong>Модель:</strong><br>openai/gpt-4o-mini</div>
+                <div><strong>Количество сценариев:</strong><br>4</div>
+            </div>
+            <h2>Исходный вопрос</h2>
+            <pre>Тест, ответь &quot;ок&quot;</pre>
+        </section>
+
+        <section class="card">
+            <h2>Графики</h2>
+            <div class="charts">
+                <div>
+                    <h3>Время ответа</h3>
+                    <div class="chart-box"><canvas id="timeChart"></canvas></div>
+                </div>
+                <div>
+                    <h3>Токены</h3>
+                    <div class="chart-box"><canvas id="tokensChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        
+        <section class="card">
+            <h2>1. Прямой ответ</h2>
+            
+            <h3>Ответ</h3>
+            <pre>ок</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.3</td></tr><tr><td>max_tokens</td><td>1200</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>2853.77</td></tr><tr><td>response_chars</td><td>2</td></tr><tr><td>response_words</td><td>1</td></tr><tr><td>prompt_tokens</td><td>15</td></tr><tr><td>completion_tokens</td><td>1</td></tr><tr><td>total_tokens</td><td>16</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>ccd9f4e0-d46d-42d9-acd6-f3fe26173025</td></tr><tr><td>gateway_latency_ms</td><td>2824</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Тест, ответь \&quot;ок\&quot;&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.3,
+  &quot;max_tokens&quot;: 1200,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;ccd9f4e0-d46d-42d9-acd6-f3fe26173025&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T04:50:03.717630+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;ок&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 2824,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 15,
+    &quot;completion_tokens&quot;: 1,
+    &quot;total_tokens&quot;: 16
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DKzcZ3koC9TN0Jjgh5IrKxI7oeoM6&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card">
+            <h2>2. Решай пошагово</h2>
+            <details><summary>Использованный system prompt</summary><pre>Ты полезный ассистент. Решай задачу пошагово, явно выделяя этапы анализа, но финальный ответ делай практичным и понятным.</pre></details>
+            <h3>Ответ</h3>
+            <pre>Ок.</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.3</td></tr><tr><td>max_tokens</td><td>1200</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>609.64</td></tr><tr><td>response_chars</td><td>3</td></tr><tr><td>response_words</td><td>1</td></tr><tr><td>prompt_tokens</td><td>53</td></tr><tr><td>completion_tokens</td><td>3</td></tr><tr><td>total_tokens</td><td>56</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>013e66cb-1886-4ef7-adda-62fa99710a8b</td></tr><tr><td>gateway_latency_ms</td><td>593</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Ты полезный ассистент. Решай задачу пошагово, явно выделяя этапы анализа, но финальный ответ делай практичным и понятным.&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Тест, ответь \&quot;ок\&quot;&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.3,
+  &quot;max_tokens&quot;: 1200,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;013e66cb-1886-4ef7-adda-62fa99710a8b&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T04:50:04.318278+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;Ок.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 593,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 53,
+    &quot;completion_tokens&quot;: 3,
+    &quot;total_tokens&quot;: 56
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DKzcZijXUFsdEzZVGZQ0l8dv27tJM&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card">
+            <h2>3. Через промпт, предложенный нейросетью</h2>
+            <details><summary>Использованный system prompt</summary><pre>Ок</pre></details>
+            <h3>Ответ</h3>
+            <pre>Ок.</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.3</td></tr><tr><td>max_tokens</td><td>1200</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>1092.58</td></tr><tr><td>response_chars</td><td>3</td></tr><tr><td>response_words</td><td>1</td></tr><tr><td>prompt_tokens</td><td>21</td></tr><tr><td>completion_tokens</td><td>3</td></tr><tr><td>total_tokens</td><td>24</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>aaf53d92-a184-495a-8622-d6c150371489</td></tr><tr><td>gateway_latency_ms</td><td>1056</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Ок&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Тест, ответь \&quot;ок\&quot;&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.3,
+  &quot;max_tokens&quot;: 1200,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;aaf53d92-a184-495a-8622-d6c150371489&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T04:50:06.030430+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;Ок.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 1056,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 21,
+    &quot;completion_tokens&quot;: 3,
+    &quot;total_tokens&quot;: 24
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DKzcbQJAC4ASi0TX0dpevO5qi5Eo4&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card">
+            <h2>4. Группа экспертов</h2>
+            <details><summary>Использованный system prompt</summary><pre>Ты симулируешь мини-дискуссию группы экспертов:
+1) Аналитик — структурирует задачу и риски.
+2) Инженер — предлагает практическое решение.
+3) Критик — указывает слабые места и ограничения.
+4) Модератор — собирает общий итог и рекомендацию.
+Ответ оформи по ролям, а в конце дай согласованный вывод.</pre></details>
+            <h3>Ответ</h3>
+            <pre>Ок.</pre>
+            <h3>Технические параметры</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.5</td></tr><tr><td>max_tokens</td><td>1800</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>662.1</td></tr><tr><td>response_chars</td><td>3</td></tr><tr><td>response_words</td><td>1</td></tr><tr><td>prompt_tokens</td><td>104</td></tr><tr><td>completion_tokens</td><td>3</td></tr><tr><td>total_tokens</td><td>107</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>580ffcea-80a0-4ba5-92b7-0077a2c1f675</td></tr><tr><td>gateway_latency_ms</td><td>623</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+            <details><summary>Payload запроса</summary><pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Ты симулируешь мини-дискуссию группы экспертов:\n1) Аналитик — структурирует задачу и риски.\n2) Инженер — предлагает практическое решение.\n3) Критик — указывает слабые места и ограничения.\n4) Модератор — собирает общий итог и рекомендацию.\nОтвет оформи по ролям, а в конце дай согласованный вывод.&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;Тест, ответь \&quot;ок\&quot;&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.5,
+  &quot;max_tokens&quot;: 1800,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre></details>
+            <details><summary>Raw response</summary><pre>{
+  &quot;request_id&quot;: &quot;580ffcea-80a0-4ba5-92b7-0077a2c1f675&quot;,
+  &quot;created_at&quot;: &quot;2026-03-19T04:50:06.688813+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;Ок.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 623,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 104,
+    &quot;completion_tokens&quot;: 3,
+    &quot;total_tokens&quot;: 107
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DKzcc0UctaPSZLWpYonNB9l4a0M3C&quot;
+}</pre></details>
+        </section>
+        
+
+        <section class="card analysis">
+            <h2>Краткий анализ различий</h2>
+            <div>```html
+<p>В данном анализе представлены четыре различных подхода к ответу на запрос пользователя "Тест, ответь 'ок'". Рассмотрим их различия по нескольким критериям.</p>
+
+<ul>
+  <li><strong>Глубина:</strong>
+    <ul>
+      <li>Все ответы предоставляют односложный ответ "ок", что делает их одинаково поверхностными.</li>
+    </ul>
+  </li>
+  <li><strong>Точность:</strong>
+    <ul>
+      <li>Все ответы точно соответствуют запросу пользователя, предоставляя желаемый ответ.</li>
+    </ul>
+  </li>
+  <li><strong>Практичность:</strong>
+    <ul>
+      <li>Ответы не содержат дополнительных пояснений или контекста, что делает их практичными для данной задачи, но ограничивает их полезность в более сложных запросах.</li>
+    </ul>
+  </li>
+  <li><strong>Структура:</strong>
+    <ul>
+      <li>Ответы имеют схожую структуру, но различаются по длине и формату (например, "Ок." с заглавной буквы в некоторых ответах).</li>
+    </ul>
+  </li>
+  <li><strong>Возможные ограничения:</strong>
+    <ul>
+      <li>Все ответы ограничены в глубине и не предоставляют дополнительной информации, что может быть недостатком в более сложных сценариях.</li>
+    </ul>
+  </li>
+</ul>
+
+<p><strong>Различия по времени ответа и токенам:</strong></p>
+<ul>
+  <li><strong>Время ответа:</strong>
+    <ul>
+      <li>Прямой ответ: 2853.77 мс</li>
+      <li>Пошаговый ответ: 609.64 мс</li>
+      <li>Ответ через промпт: 1092.58 мс</li>
+      <li>Ответ от группы экспертов: 662.1 мс</li>
+    </ul>
+  </li>
+  <li><strong>Токены:</strong>
+    <ul>
+      <li>Прямой ответ: 16 токенов</li>
+      <li>Пошаговый ответ: 56 токенов</li>
+      <li>Ответ через промпт: 24 токена</li>
+      <li>Ответ от группы экспертов: 107 токенов</li>
+    </ul>
+  </li>
+</ul>
+```
+</div>
+            <h3>Технические параметры анализа</h3>
+            <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.2</td></tr><tr><td>max_tokens</td><td>1200</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>11805.87</td></tr><tr><td>response_chars</td><td>1721</td></tr><tr><td>response_words</td><td>179</td></tr><tr><td>prompt_tokens</td><td>1095</td></tr><tr><td>completion_tokens</td><td>559</td></tr><tr><td>total_tokens</td><td>1654</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>45fd33e3-0a7b-409d-a78d-5c3a2f94ba9d</td></tr><tr><td>gateway_latency_ms</td><td>11781</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+        </section>
+    </div>
+    
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const labels = ["1. Прямой ответ", "2. Решай пошагово", "3. Через промпт, предложенный нейросетью", "4. Группа экспертов"];
+new Chart(document.getElementById('timeChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [{ label: 'Время ответа, мс', data: [2853, 609, 1092, 662] }]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+new Chart(document.getElementById('tokensChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [
+      { label: 'Prompt tokens', data: [15, 53, 21, 104] },
+      { label: 'Completion tokens', data: [1, 3, 3, 3] },
+      { label: 'Total tokens', data: [16, 56, 24, 107] }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+</script>
+
+</body>
+</html>

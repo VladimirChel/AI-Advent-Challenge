@@ -1,0 +1,303 @@
+{
+  "created_at": "2026-03-19T09:50:18.549196",
+  "question": "Тест, ответь \"ок\"",
+  "model": "openai/gpt-4o-mini",
+  "results": {
+    "direct": {
+      "mode": "1. Прямой ответ",
+      "content": "ок",
+      "prompt_used": null,
+      "request_payload": {
+        "model": "openai/gpt-4o-mini",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Тест, ответь \"ок\""
+          }
+        ],
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0
+      },
+      "technical": {
+        "request_url": "http://127.0.0.1:8000/generate",
+        "http_status": 200,
+        "model": "openai/gpt-4o-mini",
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "response_time_ms": 2853.77,
+        "response_chars": 2,
+        "response_words": 1,
+        "prompt_tokens": 15,
+        "completion_tokens": 1,
+        "total_tokens": 16,
+        "finish_reason": "stop",
+        "request_id": "ccd9f4e0-d46d-42d9-acd6-f3fe26173025",
+        "gateway_latency_ms": 2824,
+        "validation": {
+          "ok": true,
+          "errors": []
+        }
+      },
+      "raw": {
+        "request_id": "ccd9f4e0-d46d-42d9-acd6-f3fe26173025",
+        "created_at": "2026-03-19T04:50:03.717630+00:00",
+        "model": "openai/gpt-4o-mini",
+        "content": "ок",
+        "finish_reason": "stop",
+        "latency_ms": 2824,
+        "usage": {
+          "prompt_tokens": 15,
+          "completion_tokens": 1,
+          "total_tokens": 16
+        },
+        "validation": {
+          "ok": true,
+          "errors": []
+        },
+        "raw_response_id": "chatcmpl-DKzcZ3koC9TN0Jjgh5IrKxI7oeoM6"
+      }
+    },
+    "step_by_step": {
+      "mode": "2. Решай пошагово",
+      "content": "Ок.",
+      "prompt_used": "Ты полезный ассистент. Решай задачу пошагово, явно выделяя этапы анализа, но финальный ответ делай практичным и понятным.",
+      "request_payload": {
+        "model": "openai/gpt-4o-mini",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Ты полезный ассистент. Решай задачу пошагово, явно выделяя этапы анализа, но финальный ответ делай практичным и понятным."
+          },
+          {
+            "role": "user",
+            "content": "Тест, ответь \"ок\""
+          }
+        ],
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0
+      },
+      "technical": {
+        "request_url": "http://127.0.0.1:8000/generate",
+        "http_status": 200,
+        "model": "openai/gpt-4o-mini",
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "response_time_ms": 609.64,
+        "response_chars": 3,
+        "response_words": 1,
+        "prompt_tokens": 53,
+        "completion_tokens": 3,
+        "total_tokens": 56,
+        "finish_reason": "stop",
+        "request_id": "013e66cb-1886-4ef7-adda-62fa99710a8b",
+        "gateway_latency_ms": 593,
+        "validation": {
+          "ok": true,
+          "errors": []
+        }
+      },
+      "raw": {
+        "request_id": "013e66cb-1886-4ef7-adda-62fa99710a8b",
+        "created_at": "2026-03-19T04:50:04.318278+00:00",
+        "model": "openai/gpt-4o-mini",
+        "content": "Ок.",
+        "finish_reason": "stop",
+        "latency_ms": 593,
+        "usage": {
+          "prompt_tokens": 53,
+          "completion_tokens": 3,
+          "total_tokens": 56
+        },
+        "validation": {
+          "ok": true,
+          "errors": []
+        },
+        "raw_response_id": "chatcmpl-DKzcZijXUFsdEzZVGZQ0l8dv27tJM"
+      }
+    },
+    "self_prompt": {
+      "mode": "3. Через промпт, предложенный нейросетью",
+      "content": "Ок.",
+      "prompt_used": "Ок",
+      "request_payload": {
+        "model": "openai/gpt-4o-mini",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Ок"
+          },
+          {
+            "role": "user",
+            "content": "Тест, ответь \"ок\""
+          }
+        ],
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0
+      },
+      "technical": {
+        "request_url": "http://127.0.0.1:8000/generate",
+        "http_status": 200,
+        "model": "openai/gpt-4o-mini",
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "response_time_ms": 1092.58,
+        "response_chars": 3,
+        "response_words": 1,
+        "prompt_tokens": 21,
+        "completion_tokens": 3,
+        "total_tokens": 24,
+        "finish_reason": "stop",
+        "request_id": "aaf53d92-a184-495a-8622-d6c150371489",
+        "gateway_latency_ms": 1056,
+        "validation": {
+          "ok": true,
+          "errors": []
+        }
+      },
+      "raw": {
+        "request_id": "aaf53d92-a184-495a-8622-d6c150371489",
+        "created_at": "2026-03-19T04:50:06.030430+00:00",
+        "model": "openai/gpt-4o-mini",
+        "content": "Ок.",
+        "finish_reason": "stop",
+        "latency_ms": 1056,
+        "usage": {
+          "prompt_tokens": 21,
+          "completion_tokens": 3,
+          "total_tokens": 24
+        },
+        "validation": {
+          "ok": true,
+          "errors": []
+        },
+        "raw_response_id": "chatcmpl-DKzcbQJAC4ASi0TX0dpevO5qi5Eo4"
+      }
+    },
+    "experts": {
+      "mode": "4. Группа экспертов",
+      "content": "Ок.",
+      "prompt_used": "Ты симулируешь мини-дискуссию группы экспертов:\n1) Аналитик — структурирует задачу и риски.\n2) Инженер — предлагает практическое решение.\n3) Критик — указывает слабые места и ограничения.\n4) Модератор — собирает общий итог и рекомендацию.\nОтвет оформи по ролям, а в конце дай согласованный вывод.",
+      "request_payload": {
+        "model": "openai/gpt-4o-mini",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Ты симулируешь мини-дискуссию группы экспертов:\n1) Аналитик — структурирует задачу и риски.\n2) Инженер — предлагает практическое решение.\n3) Критик — указывает слабые места и ограничения.\n4) Модератор — собирает общий итог и рекомендацию.\nОтвет оформи по ролям, а в конце дай согласованный вывод."
+          },
+          {
+            "role": "user",
+            "content": "Тест, ответь \"ок\""
+          }
+        ],
+        "temperature": 0.5,
+        "max_tokens": 1800,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0
+      },
+      "technical": {
+        "request_url": "http://127.0.0.1:8000/generate",
+        "http_status": 200,
+        "model": "openai/gpt-4o-mini",
+        "temperature": 0.5,
+        "max_tokens": 1800,
+        "top_p": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "response_time_ms": 662.1,
+        "response_chars": 3,
+        "response_words": 1,
+        "prompt_tokens": 104,
+        "completion_tokens": 3,
+        "total_tokens": 107,
+        "finish_reason": "stop",
+        "request_id": "580ffcea-80a0-4ba5-92b7-0077a2c1f675",
+        "gateway_latency_ms": 623,
+        "validation": {
+          "ok": true,
+          "errors": []
+        }
+      },
+      "raw": {
+        "request_id": "580ffcea-80a0-4ba5-92b7-0077a2c1f675",
+        "created_at": "2026-03-19T04:50:06.688813+00:00",
+        "model": "openai/gpt-4o-mini",
+        "content": "Ок.",
+        "finish_reason": "stop",
+        "latency_ms": 623,
+        "usage": {
+          "prompt_tokens": 104,
+          "completion_tokens": 3,
+          "total_tokens": 107
+        },
+        "validation": {
+          "ok": true,
+          "errors": []
+        },
+        "raw_response_id": "chatcmpl-DKzcc0UctaPSZLWpYonNB9l4a0M3C"
+      }
+    }
+  },
+  "analysis": {
+    "content": "```html\n<p>В данном анализе представлены четыре различных подхода к ответу на запрос пользователя \"Тест, ответь 'ок'\". Рассмотрим их различия по нескольким критериям.</p>\n\n<ul>\n  <li><strong>Глубина:</strong>\n    <ul>\n      <li>Все ответы предоставляют односложный ответ \"ок\", что делает их одинаково поверхностными.</li>\n    </ul>\n  </li>\n  <li><strong>Точность:</strong>\n    <ul>\n      <li>Все ответы точно соответствуют запросу пользователя, предоставляя желаемый ответ.</li>\n    </ul>\n  </li>\n  <li><strong>Практичность:</strong>\n    <ul>\n      <li>Ответы не содержат дополнительных пояснений или контекста, что делает их практичными для данной задачи, но ограничивает их полезность в более сложных запросах.</li>\n    </ul>\n  </li>\n  <li><strong>Структура:</strong>\n    <ul>\n      <li>Ответы имеют схожую структуру, но различаются по длине и формату (например, \"Ок.\" с заглавной буквы в некоторых ответах).</li>\n    </ul>\n  </li>\n  <li><strong>Возможные ограничения:</strong>\n    <ul>\n      <li>Все ответы ограничены в глубине и не предоставляют дополнительной информации, что может быть недостатком в более сложных сценариях.</li>\n    </ul>\n  </li>\n</ul>\n\n<p><strong>Различия по времени ответа и токенам:</strong></p>\n<ul>\n  <li><strong>Время ответа:</strong>\n    <ul>\n      <li>Прямой ответ: 2853.77 мс</li>\n      <li>Пошаговый ответ: 609.64 мс</li>\n      <li>Ответ через промпт: 1092.58 мс</li>\n      <li>Ответ от группы экспертов: 662.1 мс</li>\n    </ul>\n  </li>\n  <li><strong>Токены:</strong>\n    <ul>\n      <li>Прямой ответ: 16 токенов</li>\n      <li>Пошаговый ответ: 56 токенов</li>\n      <li>Ответ через промпт: 24 токена</li>\n      <li>Ответ от группы экспертов: 107 токенов</li>\n    </ul>\n  </li>\n</ul>\n```\n",
+    "request_payload": {
+      "model": "openai/gpt-4o-mini",
+      "messages": [
+        {
+          "role": "system",
+          "content": "Сделай краткий, но содержательный анализ различий между четырьмя ответами. Сравни глубину, точность, практичность, структуру и возможные ограничения. Отдельно отметь различия по времени ответа и токенам, если они переданы. Ответ дай на русском языке, в HTML-совместимом тексте с абзацами и маркированным списком."
+        },
+        {
+          "role": "user",
+          "content": "Вопрос пользователя:\nТест, ответь \"ок\"\n\nОтветы:\n{\n  \"direct\": {\n    \"mode\": \"1. Прямой ответ\",\n    \"content\": \"ок\",\n    \"technical\": {\n      \"request_url\": \"http://127.0.0.1:8000/generate\",\n      \"http_status\": 200,\n      \"model\": \"openai/gpt-4o-mini\",\n      \"temperature\": 0.3,\n      \"max_tokens\": 1200,\n      \"top_p\": 1.0,\n      \"presence_penalty\": 0.0,\n      \"frequency_penalty\": 0.0,\n      \"response_time_ms\": 2853.77,\n      \"response_chars\": 2,\n      \"response_words\": 1,\n      \"prompt_tokens\": 15,\n      \"completion_tokens\": 1,\n      \"total_tokens\": 16,\n      \"finish_reason\": \"stop\",\n      \"request_id\": \"ccd9f4e0-d46d-42d9-acd6-f3fe26173025\",\n      \"gateway_latency_ms\": 2824,\n      \"validation\": {\n        \"ok\": true,\n        \"errors\": []\n      }\n    }\n  },\n  \"step_by_step\": {\n    \"mode\": \"2. Решай пошагово\",\n    \"content\": \"Ок.\",\n    \"technical\": {\n      \"request_url\": \"http://127.0.0.1:8000/generate\",\n      \"http_status\": 200,\n      \"model\": \"openai/gpt-4o-mini\",\n      \"temperature\": 0.3,\n      \"max_tokens\": 1200,\n      \"top_p\": 1.0,\n      \"presence_penalty\": 0.0,\n      \"frequency_penalty\": 0.0,\n      \"response_time_ms\": 609.64,\n      \"response_chars\": 3,\n      \"response_words\": 1,\n      \"prompt_tokens\": 53,\n      \"completion_tokens\": 3,\n      \"total_tokens\": 56,\n      \"finish_reason\": \"stop\",\n      \"request_id\": \"013e66cb-1886-4ef7-adda-62fa99710a8b\",\n      \"gateway_latency_ms\": 593,\n      \"validation\": {\n        \"ok\": true,\n        \"errors\": []\n      }\n    }\n  },\n  \"self_prompt\": {\n    \"mode\": \"3. Через промпт, предложенный нейросетью\",\n    \"content\": \"Ок.\",\n    \"technical\": {\n      \"request_url\": \"http://127.0.0.1:8000/generate\",\n      \"http_status\": 200,\n      \"model\": \"openai/gpt-4o-mini\",\n      \"temperature\": 0.3,\n      \"max_tokens\": 1200,\n      \"top_p\": 1.0,\n      \"presence_penalty\": 0.0,\n      \"frequency_penalty\": 0.0,\n      \"response_time_ms\": 1092.58,\n      \"response_chars\": 3,\n      \"response_words\": 1,\n      \"prompt_tokens\": 21,\n      \"completion_tokens\": 3,\n      \"total_tokens\": 24,\n      \"finish_reason\": \"stop\",\n      \"request_id\": \"aaf53d92-a184-495a-8622-d6c150371489\",\n      \"gateway_latency_ms\": 1056,\n      \"validation\": {\n        \"ok\": true,\n        \"errors\": []\n      }\n    }\n  },\n  \"experts\": {\n    \"mode\": \"4. Группа экспертов\",\n    \"content\": \"Ок.\",\n    \"technical\": {\n      \"request_url\": \"http://127.0.0.1:8000/generate\",\n      \"http_status\": 200,\n      \"model\": \"openai/gpt-4o-mini\",\n      \"temperature\": 0.5,\n      \"max_tokens\": 1800,\n      \"top_p\": 1.0,\n      \"presence_penalty\": 0.0,\n      \"frequency_penalty\": 0.0,\n      \"response_time_ms\": 662.1,\n      \"response_chars\": 3,\n      \"response_words\": 1,\n      \"prompt_tokens\": 104,\n      \"completion_tokens\": 3,\n      \"total_tokens\": 107,\n      \"finish_reason\": \"stop\",\n      \"request_id\": \"580ffcea-80a0-4ba5-92b7-0077a2c1f675\",\n      \"gateway_latency_ms\": 623,\n      \"validation\": {\n        \"ok\": true,\n        \"errors\": []\n      }\n    }\n  }\n}"
+        }
+      ],
+      "temperature": 0.2,
+      "max_tokens": 1200,
+      "top_p": 1.0,
+      "presence_penalty": 0.0,
+      "frequency_penalty": 0.0
+    },
+    "technical": {
+      "request_url": "http://127.0.0.1:8000/generate",
+      "http_status": 200,
+      "model": "openai/gpt-4o-mini",
+      "temperature": 0.2,
+      "max_tokens": 1200,
+      "top_p": 1.0,
+      "presence_penalty": 0.0,
+      "frequency_penalty": 0.0,
+      "response_time_ms": 11805.87,
+      "response_chars": 1721,
+      "response_words": 179,
+      "prompt_tokens": 1095,
+      "completion_tokens": 559,
+      "total_tokens": 1654,
+      "finish_reason": "stop",
+      "request_id": "45fd33e3-0a7b-409d-a78d-5c3a2f94ba9d",
+      "gateway_latency_ms": 11781,
+      "validation": {
+        "ok": true,
+        "errors": []
+      }
+    }
+  }
+}
