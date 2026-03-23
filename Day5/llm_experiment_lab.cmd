@@ -1,0 +1,2 @@
+python llm_experiment_lab2.py
+pause

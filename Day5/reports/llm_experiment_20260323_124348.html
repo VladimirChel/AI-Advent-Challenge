@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM batch report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #f6f7fb; color: #1d2433; }
+    .container { max-width: 1440px; margin: 0 auto; }
+    .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+    h1, h2, h3 { margin-top: 0; }
+    pre { white-space: pre-wrap; word-wrap: break-word; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 12px; overflow-x: auto; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .meta-grid > div { background: #eef2ff; padding: 12px; border-radius: 12px; }
+    .charts { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    .chart-box { height: 340px; }
+    .tech-table, .score-table { width: 100%; border-collapse: collapse; margin: 12px 0 16px; background: #fff; }
+    .tech-table th, .tech-table td, .score-table th, .score-table td { border: 1px solid #d8ddea; padding: 8px 10px; text-align: left; vertical-align: top; }
+    .tech-table th, .score-table th { background: #eef2ff; }
+    .muted { color: #576074; font-size: 12px; margin-top: 6px; }
+    details { margin: 12px 0; }
+    .pill { display: inline-block; padding: 6px 12px; border-radius: 999px; background: #dbeafe; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="card">
+      <h1>Отчёт по серии запросов к LLM</h1>
+      <div class="meta-grid">
+        <div><strong>Время</strong><br>2026-03-23 12:43:48</div>
+        <div><strong>Модель</strong><br>openai/gpt-4.1</div>
+        <div><strong>Количество сценариев</strong><br>3</div>
+        <div><strong>Победитель</strong><br><span class="pill">запрос 3</span></div>
+      </div>
+
+      <h2>Вопрос</h2>
+      <pre>На что обратить внимание при планировке кухни. Кухня угловая, есть остров и два окна.</pre>
+
+      <h2>Глобальный system prompt</h2>
+      <pre>Отвечай на русском языке.</pre>
+
+      <h2>Критерии оценки</h2>
+      <ul><li>качество ответов</li><li>скорость</li><li>ресурсоёмкость</li></ul>
+    </section>
+
+    <section class="card">
+      <h2>Сводка judge-модели</h2>
+      <div><h3>Сравнительный анализ ответов на вопрос о планировке кухни</h3><p>Все три сценария предоставили полезные и структурированные рекомендации по планировке угловой кухни с островом и двумя окнами. Однако различия проявляются в детализации, полноте, скорости генерации и стоимости:</p><ul><li><b>Запрос 1 (DeepSeek Chat v3.1)</b> — краткий, лаконичный, охватывает основные аспекты, но без глубоких нюансов.</li><li><b>Запрос 2 (OpenAI GPT-4o-mini)</b> — чуть более подробный, с акцентом на материалы и освещение, хорошо сбалансирован по объёму и детализации.</li><li><b>Запрос 3 (Gemini 3 Pro Preview)</b> — наиболее развернутый и практически ориентированный ответ, с конкретными советами по размещению мойки, учёту радиаторов, вентиляции, организации хранения и работе с угловыми зонами.</li></ul><p>По соотношению качества, скорости и стоимости наиболее оптимальным выглядит <b>Запрос 2</b>, но по глубине и практической пользе лидирует <b>Запрос 3</b>.</p></div>
+      <h3>Таблица оценок</h3>
+      <table class="score-table"><thead><tr><th>Сценарий</th><th>Итог</th><th>качество ответов</th><th>скорость</th><th>ресурсоёмкость</th><th>Вердикт</th></tr></thead><tbody><tr><td>запрос 1</td><td>6</td><td><div><strong>2</strong></div><div class='muted'>Ответ краткий, охватывает базовые аспекты, но не даёт нюансов и практических советов, которые могут быть полезны при реальной планировке.</div></td><td><div><strong>2</strong></div><div class='muted'>Среднее время генерации (13399 мс), не самое быстрое, но приемлемое.</div></td><td><div><strong>2</strong></div><div class='muted'>DeepSeek Chat v3.1 (openrouter) — стоимость 0.0007$ за 1K токенов (https://proxyapi.ru/openrouter). Запрос: 218 токенов = 0.0001526$. Очень экономично.</div></td><td>Подходит для быстрых, базовых рекомендаций при минимальных затратах.</td></tr><tr><td>запрос 2</td><td>8</td><td><div><strong>3</strong></div><div class='muted'>Ответ хорошо структурирован, содержит практические советы, упоминает материалы и освещение, но не столь детализирован, как у Gemini.</div></td><td><div><strong>3</strong></div><div class='muted'>Самый быстрый ответ (5479 мс).</div></td><td><div><strong>2</strong></div><div class='muted'>GPT-4o-mini (https://proxyapi.ru/pricing/list) — 0.0005$ за 1K токенов. Запрос: 257 токенов = 0.0001285$. Очень экономично.</div></td><td>Оптимальный выбор для большинства пользователей: быстро, недорого, информативно.</td></tr><tr><td>запрос 3</td><td>9</td><td><div><strong>4</strong></div><div class='muted'>Максимально подробный, практически ориентированный ответ с нюансами по размещению мойки, учёту радиаторов, вентиляции, хранению и работе с угловыми зонами.</div></td><td><div><strong>2</strong></div><div class='muted'>Самый медленный ответ (15671 мс), что может быть критично при массовом использовании.</div></td><td><div><strong>3</strong></div><div class='muted'>Gemini 3 Pro Preview (https://proxyapi.ru/pricing/list) — 0.0005$ за 1K токенов. Запрос: 1359 токенов = 0.0006795$. Всё ещё очень дёшево, но дороже других вариантов из-за большого объёма.</div></td><td>Лучший выбор для тех, кому важна глубина и практическая польза, несмотря на скорость.</td></tr></tbody></table>
+      <h3>Сравнение сценариев и техпараметров</h3>
+      <table class="score-table"><thead><tr><th>Сценарий</th><th>Модель</th><th>Temperature</th><th>Top-p</th><th>Max tokens</th><th>Presence penalty</th><th>Frequency penalty</th><th>Latency, ms</th><th>Total tokens</th><th>Score</th><th>Technical summary</th><th>Verdict</th></tr></thead><tbody><tr><td>запрос 1</td><td>openrouter/deepseek/deepseek-chat-v3.1</td><td>0.2</td><td>1.0</td><td>3000</td><td>0.0</td><td>0.0</td><td>13399.57</td><td>218</td><td>6</td><td>Модель DeepSeek Chat v3.1, низкая температура, средний объём генерации, экономичный расход токенов.</td><td>Подходит для быстрых, базовых рекомендаций при минимальных затратах.</td></tr><tr><td>запрос 2</td><td>openai/gpt-4o-mini</td><td>0.2</td><td>1.0</td><td>3000</td><td>0.0</td><td>0.0</td><td>5479.79</td><td>257</td><td>8</td><td>Модель GPT-4o-mini, низкая температура, быстрый отклик, минимальные расходы.</td><td>Оптимальный выбор для большинства пользователей: быстро, недорого, информативно.</td></tr><tr><td>запрос 3</td><td>gemini/gemini-3-pro-preview</td><td>0.2</td><td>1.0</td><td>3000</td><td>0.0</td><td>0.0</td><td>15671.69</td><td>1359</td><td>9</td><td>Модель Gemini 3 Pro Preview, низкая температура, большой объём генерации, чуть выше стоимость и медленный отклик.</td><td>Лучший выбор для тех, кому важна глубина и практическая польза, несмотря на скорость.</td></tr></tbody></table>
+      <h3>Влияние технических параметров</h3>
+      <div><h3>Влияние технических параметров на результат</h3><ul><li><b>temperature = 0.2</b> во всех сценариях — способствует более детерминированным, структурированным и менее креативным ответам. Это обеспечивает стабильность и предсказуемость, но не влияет на уникальность или глубину.</li><li><b>max_tokens = 3000</b> — ограничение не достигнуто ни в одном ответе, но у Gemini сгенерировано заметно больше текста, что может быть связано с особенностями модели.</li><li><b>response_time_ms</b>: GPT-4o-mini (5479 мс) — самый быстрый, DeepSeek (13399 мс) — средний, Gemini (15671 мс) — самый медленный. Это влияет на пользовательский опыт.</li><li><b>response_chars/words</b>: Gemini генерирует самый длинный и подробный ответ, что может быть связано с архитектурой модели и её склонностью к развернутым объяснениям.</li><li><b>Модели</b>: Gemini и GPT-4o-mini — флагманские, DeepSeek — более бюджетный вариант. Gemini склонен к подробности, GPT-4o-mini — к балансу, DeepSeek — к краткости.</li></ul></div>
+      <details>
+        <summary>Технические параметры judge-запроса</summary>
+        <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4.1</td></tr><tr><td>temperature</td><td>0.2</td></tr><tr><td>max_tokens</td><td>10000</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>21138.58</td></tr><tr><td>response_chars</td><td>6565</td></tr><tr><td>response_words</td><td>717</td></tr><tr><td>prompt_tokens</td><td>1930</td></tr><tr><td>completion_tokens</td><td>1875</td></tr><tr><td>total_tokens</td><td>3805</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>a228dd77-20b7-4fe0-954b-f974f2be2c75</td></tr><tr><td>gateway_latency_ms</td><td>21127</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Графики</h2>
+      <div class="charts">
+        <div>
+          <h3>Время ответа</h3>
+          <div class="chart-box"><canvas id="timeChart"></canvas></div>
+        </div>
+        <div>
+          <h3>Токены</h3>
+          <div class="chart-box"><canvas id="tokensChart"></canvas></div>
+        </div>
+        <div>
+          <h3>Итоговые оценки</h3>
+          <div class="chart-box"><canvas id="scoreChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    
+            <section class="card">
+                <h2>запрос 1</h2>
+                
+            <div class="meta-grid">
+                <div><strong>Модель сценария</strong><br>openrouter/deepseek/deepseek-chat-v3.1</div>
+                <div><strong>Temperature</strong><br>0.2</div>
+                <div><strong>Max tokens</strong><br>3000</div>
+                <div><strong>Top P</strong><br>1.0</div>
+                <div><strong>Presence penalty</strong><br>0.0</div>
+                <div><strong>Frequency penalty</strong><br>0.0</div>
+            </div>
+            <details>
+                <summary>System prompt сценария</summary>
+                <pre>Отвечай кратко</pre>
+            </details>
+            
+                <h3>Ответ модели</h3>
+                <pre>При планировке угловой кухни с островом и двумя окнами обратите внимание на:
+
+1. Расположение острова — обеспечьте проходы не менее 90-100 см.
+2. Рабочий треугольник (холодильник-мойка-плита) — разместите компактно.
+3. Естественное освещение — не загораживайте окна высокими шкафами.
+4. Распределение зон — готовка, хранение, мойка.
+5. Коммуникации — заранее спланируйте подвод воды, электричества и вентиляции к острову.
+6. Вытяжку — над островом потребуется подвесная или встраиваемая модель.</pre>
+                <h3>Технические параметры</h3>
+                <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openrouter/deepseek/deepseek-chat-v3.1</td></tr><tr><td>temperature</td><td>0.2</td></tr><tr><td>max_tokens</td><td>3000</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>13399.57</td></tr><tr><td>response_chars</td><td>494</td></tr><tr><td>response_words</td><td>67</td></tr><tr><td>prompt_tokens</td><td>45</td></tr><tr><td>completion_tokens</td><td>173</td></tr><tr><td>total_tokens</td><td>218</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>bd10d9a1-d414-4b12-b379-82fd5055e8a3</td></tr><tr><td>gateway_latency_ms</td><td>13386</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+                <details>
+                    <summary>Payload запроса</summary>
+                    <pre>{
+  &quot;model&quot;: &quot;openrouter/deepseek/deepseek-chat-v3.1&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Отвечай на русском языке.\n\nОтвечай кратко&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;На что обратить внимание при планировке кухни. Кухня угловая, есть остров и два окна.&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.2,
+  &quot;max_tokens&quot;: 3000,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre>
+                </details>
+                <details>
+                    <summary>Raw response</summary>
+                    <pre>{
+  &quot;request_id&quot;: &quot;bd10d9a1-d414-4b12-b379-82fd5055e8a3&quot;,
+  &quot;created_at&quot;: &quot;2026-03-23T07:43:06.101305+00:00&quot;,
+  &quot;model&quot;: &quot;openrouter/deepseek/deepseek-chat-v3.1&quot;,
+  &quot;content&quot;: &quot;При планировке угловой кухни с островом и двумя окнами обратите внимание на:\n\n1. Расположение острова — обеспечьте проходы не менее 90-100 см.\n2. Рабочий треугольник (холодильник-мойка-плита) — разместите компактно.\n3. Естественное освещение — не загораживайте окна высокими шкафами.\n4. Распределение зон — готовка, хранение, мойка.\n5. Коммуникации — заранее спланируйте подвод воды, электричества и вентиляции к острову.\n6. Вытяжку — над островом потребуется подвесная или встраиваемая модель.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 13386,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 45,
+    &quot;completion_tokens&quot;: 173,
+    &quot;total_tokens&quot;: 218
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;gen-1774251773-pihMLS0CG7PnBln14x5b&quot;
+}</pre>
+                </details>
+            </section>
+            
+            <section class="card">
+                <h2>запрос 2</h2>
+                
+            <div class="meta-grid">
+                <div><strong>Модель сценария</strong><br>openai/gpt-4o-mini</div>
+                <div><strong>Temperature</strong><br>0.2</div>
+                <div><strong>Max tokens</strong><br>3000</div>
+                <div><strong>Top P</strong><br>1.0</div>
+                <div><strong>Presence penalty</strong><br>0.0</div>
+                <div><strong>Frequency penalty</strong><br>0.0</div>
+            </div>
+            <details>
+                <summary>System prompt сценария</summary>
+                <pre>Отвечай кратко</pre>
+            </details>
+            
+                <h3>Ответ модели</h3>
+                <pre>При планировке угловой кухни с островом и двумя окнами обратите внимание на следующее:
+
+1. **Рабочий треугольник**: разместите плиту, раковину и холодильник так, чтобы они образовывали удобный треугольник.
+2. **Освещение**: учтите естественное освещение от окон и добавьте дополнительные источники света над островом и рабочими зонами.
+3. **Хранение**: используйте угловые шкафы и ящики для максимизации пространства.
+4. **Функциональность острова**: определите, будет ли он использоваться как рабочая поверхность, обеденная зона или для хранения.
+5. **Поток движения**: оставьте достаточно пространства для свободного передвижения между рабочими зонами и островом.
+6. **Материалы и отделка**: выбирайте устойчивые к влаге и легкие в уходе материалы для столешниц и фасадов.</pre>
+                <h3>Технические параметры</h3>
+                <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>openai/gpt-4o-mini</td></tr><tr><td>temperature</td><td>0.2</td></tr><tr><td>max_tokens</td><td>3000</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>5479.79</td></tr><tr><td>response_chars</td><td>774</td></tr><tr><td>response_words</td><td>101</td></tr><tr><td>prompt_tokens</td><td>46</td></tr><tr><td>completion_tokens</td><td>211</td></tr><tr><td>total_tokens</td><td>257</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>a4adb909-ab0e-4803-bd58-6be15ef75b49</td></tr><tr><td>gateway_latency_ms</td><td>5474</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+                <details>
+                    <summary>Payload запроса</summary>
+                    <pre>{
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Отвечай на русском языке.\n\nОтвечай кратко&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;На что обратить внимание при планировке кухни. Кухня угловая, есть остров и два окна.&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.2,
+  &quot;max_tokens&quot;: 3000,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre>
+                </details>
+                <details>
+                    <summary>Raw response</summary>
+                    <pre>{
+  &quot;request_id&quot;: &quot;a4adb909-ab0e-4803-bd58-6be15ef75b49&quot;,
+  &quot;created_at&quot;: &quot;2026-03-23T07:43:11.587087+00:00&quot;,
+  &quot;model&quot;: &quot;openai/gpt-4o-mini&quot;,
+  &quot;content&quot;: &quot;При планировке угловой кухни с островом и двумя окнами обратите внимание на следующее:\n\n1. **Рабочий треугольник**: разместите плиту, раковину и холодильник так, чтобы они образовывали удобный треугольник.\n2. **Освещение**: учтите естественное освещение от окон и добавьте дополнительные источники света над островом и рабочими зонами.\n3. **Хранение**: используйте угловые шкафы и ящики для максимизации пространства.\n4. **Функциональность острова**: определите, будет ли он использоваться как рабочая поверхность, обеденная зона или для хранения.\n5. **Поток движения**: оставьте достаточно пространства для свободного передвижения между рабочими зонами и островом.\n6. **Материалы и отделка**: выбирайте устойчивые к влаге и легкие в уходе материалы для столешниц и фасадов.&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 5474,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 46,
+    &quot;completion_tokens&quot;: 211,
+    &quot;total_tokens&quot;: 257
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;chatcmpl-DMUEEMCHeiWJdU5ehbz1adUC4a4ia&quot;
+}</pre>
+                </details>
+            </section>
+            
+            <section class="card">
+                <h2>запрос 3</h2>
+                
+            <div class="meta-grid">
+                <div><strong>Модель сценария</strong><br>gemini/gemini-3-pro-preview</div>
+                <div><strong>Temperature</strong><br>0.2</div>
+                <div><strong>Max tokens</strong><br>3000</div>
+                <div><strong>Top P</strong><br>1.0</div>
+                <div><strong>Presence penalty</strong><br>0.0</div>
+                <div><strong>Frequency penalty</strong><br>0.0</div>
+            </div>
+            <details>
+                <summary>System prompt сценария</summary>
+                <pre>Отвечай кратко</pre>
+            </details>
+            
+                <h3>Ответ модели</h3>
+                <pre>Вот главные моменты, на которые нужно обратить внимание:
+
+*   **Окна:** Идеальное место для мойки или широкой рабочей зоны (много естественного света). Учтите высоту подоконников (в идеале — вровень со столешницей) и радиаторы (в столешнице над ними нужны вентиляционные решетки).
+*   **Хранение:** Из-за двух окон останется мало места для верхних шкафов. Компенсируйте это высокими шкафами-пеналами по глухой стене и ящиками в острове.
+*   **Остров:** Проходы вокруг него должны быть **не менее 100–120 см** для свободного открывания дверец и перемещения. Четко определите его функцию: готовка, барная стойка или просто хранение.
+*   **Рабочий треугольник:** Холодильник, мойка и плита должны располагаться близко друг к другу. Остров можно сделать одной из вершин этого треугольника (например, вынести туда мойку или плиту).
+*   **Коммуникации:** Если на острове планируется плита или раковина, трубы и кабели нужно закладывать в пол до стяжки, а вытяжку делать потолочной.
+*   **Угол:** Обязательно продумайте доступ в &quot;слепую&quot; угловую зону. Используйте выкатную фурнитуру (карусели, &quot;волшебные уголки&quot;).</pre>
+                <h3>Технические параметры</h3>
+                <table class="tech-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>request_url</td><td>http://127.0.0.1:8000/generate</td></tr><tr><td>http_status</td><td>200</td></tr><tr><td>model</td><td>gemini/gemini-3-pro-preview</td></tr><tr><td>temperature</td><td>0.2</td></tr><tr><td>max_tokens</td><td>3000</td></tr><tr><td>top_p</td><td>1.0</td></tr><tr><td>presence_penalty</td><td>0.0</td></tr><tr><td>frequency_penalty</td><td>0.0</td></tr><tr><td>response_time_ms</td><td>15671.69</td></tr><tr><td>response_chars</td><td>1107</td></tr><tr><td>response_words</td><td>152</td></tr><tr><td>prompt_tokens</td><td>36</td></tr><tr><td>completion_tokens</td><td>1323</td></tr><tr><td>total_tokens</td><td>1359</td></tr><tr><td>finish_reason</td><td>stop</td></tr><tr><td>request_id</td><td>aa22decd-b153-4e13-a1a9-e00729a48b1d</td></tr><tr><td>gateway_latency_ms</td><td>15641</td></tr><tr><td>validation</td><td>{&quot;ok&quot;: true, &quot;errors&quot;: []}</td></tr></tbody></table>
+                <details>
+                    <summary>Payload запроса</summary>
+                    <pre>{
+  &quot;model&quot;: &quot;gemini/gemini-3-pro-preview&quot;,
+  &quot;messages&quot;: [
+    {
+      &quot;role&quot;: &quot;system&quot;,
+      &quot;content&quot;: &quot;Отвечай на русском языке.\n\nОтвечай кратко&quot;
+    },
+    {
+      &quot;role&quot;: &quot;user&quot;,
+      &quot;content&quot;: &quot;На что обратить внимание при планировке кухни. Кухня угловая, есть остров и два окна.&quot;
+    }
+  ],
+  &quot;temperature&quot;: 0.2,
+  &quot;max_tokens&quot;: 3000,
+  &quot;top_p&quot;: 1.0,
+  &quot;presence_penalty&quot;: 0.0,
+  &quot;frequency_penalty&quot;: 0.0
+}</pre>
+                </details>
+                <details>
+                    <summary>Raw response</summary>
+                    <pre>{
+  &quot;request_id&quot;: &quot;aa22decd-b153-4e13-a1a9-e00729a48b1d&quot;,
+  &quot;created_at&quot;: &quot;2026-03-23T07:43:27.250067+00:00&quot;,
+  &quot;model&quot;: &quot;gemini/gemini-3-pro-preview&quot;,
+  &quot;content&quot;: &quot;Вот главные моменты, на которые нужно обратить внимание:\n\n*   **Окна:** Идеальное место для мойки или широкой рабочей зоны (много естественного света). Учтите высоту подоконников (в идеале — вровень со столешницей) и радиаторы (в столешнице над ними нужны вентиляционные решетки).\n*   **Хранение:** Из-за двух окон останется мало места для верхних шкафов. Компенсируйте это высокими шкафами-пеналами по глухой стене и ящиками в острове.\n*   **Остров:** Проходы вокруг него должны быть **не менее 100–120 см** для свободного открывания дверец и перемещения. Четко определите его функцию: готовка, барная стойка или просто хранение.\n*   **Рабочий треугольник:** Холодильник, мойка и плита должны располагаться близко друг к другу. Остров можно сделать одной из вершин этого треугольника (например, вынести туда мойку или плиту).\n*   **Коммуникации:** Если на острове планируется плита или раковина, трубы и кабели нужно закладывать в пол до стяжки, а вытяжку делать потолочной.\n*   **Угол:** Обязательно продумайте доступ в \&quot;слепую\&quot; угловую зону. Используйте выкатную фурнитуру (карусели, \&quot;волшебные уголки\&quot;).&quot;,
+  &quot;finish_reason&quot;: &quot;stop&quot;,
+  &quot;latency_ms&quot;: 15641,
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 36,
+    &quot;completion_tokens&quot;: 1323,
+    &quot;total_tokens&quot;: 1359
+  },
+  &quot;validation&quot;: {
+    &quot;ok&quot;: true,
+    &quot;errors&quot;: []
+  },
+  &quot;raw_response_id&quot;: &quot;H-_AabunAsn6xs0PoNzK4Ac&quot;
+}</pre>
+                </details>
+            </section>
+            
+  </div>
+  
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const labels = ["запрос 1", "запрос 2", "запрос 3"];
+
+new Chart(document.getElementById('timeChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{ label: 'Время ответа, мс', data: [13399.57, 5479.79, 15671.69] }]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+
+new Chart(document.getElementById('tokensChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Prompt tokens', data: [45, 46, 36] },
+      { label: 'Completion tokens', data: [173, 211, 1323] },
+      { label: 'Total tokens', data: [218, 257, 1359] }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+
+new Chart(document.getElementById('scoreChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{ label: 'Итоговая оценка judge-модели', data: [6, 8, 9] }]
+  },
+  options: { responsive: true, maintainAspectRatio: false }
+});
+</script>
+
+</body>
+</html>

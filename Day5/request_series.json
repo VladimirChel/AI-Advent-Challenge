@@ -1,0 +1,35 @@
+[
+  {
+    "name": "запрос 1",
+	"model": "openrouter/deepseek/deepseek-chat-v3.1",
+    "enabled": true,
+    "system_prompt": "Отвечай кратко",
+    "temperature": 0.2,
+    "max_tokens": 3000,
+    "top_p": 1.0,
+    "presence_penalty": 0.0,
+    "frequency_penalty": 0.0
+  },
+  {
+    "name": "запрос 2",
+    "model": "openai/gpt-4o-mini",
+    "enabled": true,
+    "system_prompt": "Отвечай кратко",
+    "temperature": 0.2,
+    "max_tokens": 3000,
+    "top_p": 1.0,
+    "presence_penalty": 0.0,
+    "frequency_penalty": 0.0
+  },
+  {
+    "name": "запрос 3",
+    "model": "gemini/gemini-3-pro-preview",
+    "enabled": true,
+    "system_prompt": "Отвечай кратко",
+    "temperature": 0.2,
+    "max_tokens": 3000,
+    "top_p": 1.0,
+    "presence_penalty": 0.0,
+    "frequency_penalty": 0.0
+  }
+]
