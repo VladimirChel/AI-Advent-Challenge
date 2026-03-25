@@ -1,0 +1,7 @@
+{
+  "conversation_id": "997e204e-5ae5-4603-9bab-bae421c9e377",
+  "model": "openai/gpt-4o-mini",
+  "messages": [
+    {"role": "user", "content": "Как меня зовут?"}
+  ]
+}
