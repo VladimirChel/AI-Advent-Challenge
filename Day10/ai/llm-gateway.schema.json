@@ -1,0 +1,371 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/llm-gateway.schema.json",
+  "title": "LLM Gateway Contract",
+  "description": "JSON Schema for core request/response objects of the LLM Gateway service.",
+  "type": "object",
+  "$defs": {
+    "ChatMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "content"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "system",
+            "user",
+            "assistant"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50000
+        }
+      }
+    },
+    "ResponseValidationRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_output_length": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 20000
+        },
+        "max_output_length": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 200000
+        },
+        "must_contain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "forbid_phrases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "require_json": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "MemoryStrategy": {
+      "type": "string",
+      "enum": [
+        "none",
+        "window",
+        "summary",
+        "retrieval",
+        "hybrid",
+        "facts",
+        "hybrid_facts"
+      ]
+    },
+    "LLMRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "messages"
+      ],
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200,
+          "default": "openai/gpt-4o-mini"
+        },
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ChatMessage"
+          }
+        },
+        "conversation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "branch_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "default": "main"
+        },
+        "fork_from_branch_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "fork_from_message_uuid": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "use_memory": {
+          "type": "boolean",
+          "default": true
+        },
+        "memory_strategy": {
+          "$ref": "#/$defs/MemoryStrategy",
+          "default": "hybrid"
+        },
+        "history_limit": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 20
+        },
+        "retrieval_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "retrieval_limit": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20,
+          "default": 6
+        },
+        "sticky_facts_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0.0,
+          "default": 0.2
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 500
+        },
+        "top_p": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 1.0
+        },
+        "presence_penalty": {
+          "type": "number",
+          "minimum": -2.0,
+          "maximum": 2.0,
+          "default": 0.0
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "minimum": -2.0,
+          "maximum": 2.0,
+          "default": 0.0
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "metadata": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": true
+        },
+        "validation": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ResponseValidationRules"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stop": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
+    },
+    "StickyFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "value",
+        "source"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "default": "llm"
+        },
+        "last_observed_seq_no": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "LLMResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_id",
+        "conversation_id",
+        "branch_id",
+        "created_at",
+        "model",
+        "content",
+        "latency_ms",
+        "usage",
+        "validation",
+        "context_messages_used",
+        "messages_saved",
+        "summary_used",
+        "summary_updated",
+        "retrieval_used",
+        "retrieval_messages_used",
+        "sticky_facts_used",
+        "sticky_facts_updated",
+        "sticky_facts_count"
+      ],
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "conversation_id": {
+          "type": "string"
+        },
+        "branch_id": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "model": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "finish_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latency_ms": {
+          "type": "integer"
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "validation": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "raw_response_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "context_messages_used": {
+          "type": "integer"
+        },
+        "messages_saved": {
+          "type": "integer"
+        },
+        "summary_used": {
+          "type": "boolean"
+        },
+        "summary_updated": {
+          "type": "boolean"
+        },
+        "retrieval_used": {
+          "type": "boolean"
+        },
+        "retrieval_messages_used": {
+          "type": "integer"
+        },
+        "retrieval_query": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sticky_facts_used": {
+          "type": "boolean"
+        },
+        "sticky_facts_updated": {
+          "type": "boolean"
+        },
+        "sticky_facts_count": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "properties": {
+    "LLMRequest": {
+      "$ref": "#/$defs/LLMRequest"
+    },
+    "LLMResponse": {
+      "$ref": "#/$defs/LLMResponse"
+    },
+    "ChatMessage": {
+      "$ref": "#/$defs/ChatMessage"
+    },
+    "StickyFact": {
+      "$ref": "#/$defs/StickyFact"
+    }
+  }
+}

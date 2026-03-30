@@ -1,0 +1,879 @@
+openapi: 3.1.0
+info:
+  title: LLM Gateway via ProxyAPI
+  version: 1.3.0
+  summary: Stateful LLM gateway with conversation memory, summaries, retrieval, sticky facts, and branch support
+  description: |
+    Python/FastAPI сервис-прокси для вызова LLM через OpenAI-compatible API.
+    Сервис добавляет:
+      - хранение диалогов в PostgreSQL
+      - memory strategies
+      - summary memory
+      - retrieval по истории сообщений
+      - sticky facts
+      - branch/fork диалогов
+      - post-generation validation
+      - audit logging
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+tags:
+  - name: System
+  - name: Generation
+  - name: Conversations
+  - name: Memory
+  - name: Branches
+  - name: Models
+
+components:
+  schemas:
+    ChatMessage:
+      type: object
+      additionalProperties: false
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+
+    ResponseValidationRules:
+      type: object
+      additionalProperties: false
+      properties:
+        min_output_length:
+          type: integer
+          minimum: 1
+          maximum: 20000
+          nullable: true
+        max_output_length:
+          type: integer
+          minimum: 1
+          maximum: 200000
+          nullable: true
+        must_contain:
+          type: array
+          items:
+            type: string
+          default: []
+        forbid_phrases:
+          type: array
+          items:
+            type: string
+          default: []
+        require_json:
+          type: boolean
+          default: false
+
+    MemoryStrategy:
+      type: string
+      enum:
+        - none
+        - window
+        - summary
+        - retrieval
+        - hybrid
+        - facts
+        - hybrid_facts
+
+    LLMRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - messages
+      properties:
+        model:
+          type: string
+          description: LLM model in provider/model format
+          example: openai/gpt-4o-mini
+          minLength: 3
+          maxLength: 200
+        messages:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        conversation_id:
+          type: string
+          nullable: true
+          maxLength: 200
+          description: Existing conversation id; if omitted, service creates one
+        branch_id:
+          type: string
+          default: main
+          minLength: 1
+          maxLength: 200
+        fork_from_branch_id:
+          type: string
+          nullable: true
+          maxLength: 200
+        fork_from_message_uuid:
+          type: string
+          nullable: true
+          maxLength: 200
+          description: If provided, current branch may be created by copying messages up to this message UUID
+        use_memory:
+          type: boolean
+          default: true
+        memory_strategy:
+          $ref: '#/components/schemas/MemoryStrategy'
+        history_limit:
+          type: integer
+          default: 20
+          minimum: 0
+          maximum: 100
+        retrieval_enabled:
+          type: boolean
+          default: true
+        retrieval_limit:
+          type: integer
+          default: 6
+          minimum: 0
+          maximum: 20
+        sticky_facts_enabled:
+          type: boolean
+          default: true
+        temperature:
+          type: number
+          format: float
+          default: 0.2
+          minimum: 0.0
+          description: Upper bound enforced by server env config
+        max_tokens:
+          type: integer
+          default: 500
+          minimum: 1
+          description: Upper bound enforced by server env config
+        top_p:
+          type: number
+          format: float
+          default: 1.0
+          minimum: 0.0
+          maximum: 1.0
+        presence_penalty:
+          type: number
+          format: float
+          default: 0.0
+          minimum: -2.0
+          maximum: 2.0
+        frequency_penalty:
+          type: number
+          format: float
+          default: 0.0
+          minimum: -2.0
+          maximum: 2.0
+        user_id:
+          type: string
+          nullable: true
+          maxLength: 200
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Arbitrary JSON metadata; serialized payload size is limited by server
+        validation:
+          allOf:
+            - $ref: '#/components/schemas/ResponseValidationRules'
+          nullable: true
+        stop:
+          type: array
+          nullable: true
+          maxItems: 16
+          items:
+            type: string
+            maxLength: 200
+
+    RetrievedMemoryItem:
+      type: object
+      additionalProperties: false
+      required: [seq_no, role, score, content]
+      properties:
+        seq_no:
+          type: integer
+        role:
+          type: string
+          enum: [system, user, assistant]
+        score:
+          type: number
+          format: float
+        content:
+          type: string
+
+    StickyFact:
+      type: object
+      additionalProperties: false
+      required: [key, value, source]
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        source:
+          type: string
+          default: llm
+        last_observed_seq_no:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ConversationSummaryInfo:
+      type: object
+      additionalProperties: false
+      required: [summary, source_upto_seq_no]
+      properties:
+        summary:
+          type: string
+        source_upto_seq_no:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    LLMResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - conversation_id
+        - branch_id
+        - created_at
+        - model
+        - content
+        - latency_ms
+        - usage
+        - validation
+        - context_messages_used
+        - messages_saved
+        - summary_used
+        - summary_updated
+        - retrieval_used
+        - retrieval_messages_used
+        - sticky_facts_used
+        - sticky_facts_updated
+        - sticky_facts_count
+      properties:
+        request_id:
+          type: string
+        conversation_id:
+          type: string
+        branch_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        model:
+          type: string
+        content:
+          type: string
+        finish_reason:
+          type: string
+          nullable: true
+        latency_ms:
+          type: integer
+        usage:
+          type: object
+          additionalProperties: true
+          properties:
+            prompt_tokens:
+              type: integer
+              nullable: true
+            completion_tokens:
+              type: integer
+              nullable: true
+            total_tokens:
+              type: integer
+              nullable: true
+        validation:
+          type: object
+          additionalProperties: true
+          properties:
+            ok:
+              type: boolean
+            errors:
+              type: array
+              items:
+                type: string
+        raw_response_id:
+          type: string
+          nullable: true
+        context_messages_used:
+          type: integer
+        messages_saved:
+          type: integer
+        summary_used:
+          type: boolean
+        summary_updated:
+          type: boolean
+        retrieval_used:
+          type: boolean
+        retrieval_messages_used:
+          type: integer
+        retrieval_query:
+          type: string
+          nullable: true
+        sticky_facts_used:
+          type: boolean
+        sticky_facts_updated:
+          type: boolean
+        sticky_facts_count:
+          type: integer
+
+    ConversationMessageMeta:
+      type: object
+      additionalProperties: false
+      required:
+        - message_uuid
+        - role
+        - content
+        - seq_no
+      properties:
+        message_uuid:
+          type: string
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+        seq_no:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ConversationMessagesResponse:
+      type: object
+      additionalProperties: false
+      required: [conversation_id, branch_id, messages, count]
+      properties:
+        conversation_id:
+          type: string
+        branch_id:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationMessageMeta'
+        count:
+          type: integer
+
+    ConversationSummaryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - conversation_id
+        - branch_id
+        - source_upto_seq_no
+        - exists
+      properties:
+        conversation_id:
+          type: string
+        branch_id:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        source_upto_seq_no:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        exists:
+          type: boolean
+
+    ConversationFactsResponse:
+      type: object
+      additionalProperties: false
+      required: [conversation_id, branch_id, facts, count]
+      properties:
+        conversation_id:
+          type: string
+        branch_id:
+          type: string
+        facts:
+          type: array
+          items:
+            $ref: '#/components/schemas/StickyFact'
+        count:
+          type: integer
+
+    RefreshFactsResponse:
+      type: object
+      additionalProperties: false
+      required: [conversation_id, branch_id, updated, upserted, facts, count]
+      properties:
+        conversation_id:
+          type: string
+        branch_id:
+          type: string
+        updated:
+          type: boolean
+        upserted:
+          type: integer
+        facts:
+          type: array
+          items:
+            $ref: '#/components/schemas/StickyFact'
+        count:
+          type: integer
+
+    RefreshSummaryResponse:
+      type: object
+      additionalProperties: false
+      required: [conversation_id, branch_id, updated, source_upto_seq_no]
+      properties:
+        conversation_id:
+          type: string
+        branch_id:
+          type: string
+        updated:
+          type: boolean
+        summary:
+          type: string
+          nullable: true
+        source_upto_seq_no:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    BranchInfo:
+      type: object
+      additionalProperties: false
+      required: [branch_id, messages_count, created_at, updated_at]
+      properties:
+        branch_id:
+          type: string
+        messages_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    BranchListResponse:
+      type: object
+      additionalProperties: false
+      required: [conversation_id, branches, count]
+      properties:
+        conversation_id:
+          type: string
+        branches:
+          type: array
+          items:
+            $ref: '#/components/schemas/BranchInfo'
+        count:
+          type: integer
+
+    BranchCreateResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - conversation_id
+        - branch_id
+        - source_branch_id
+        - fork_from_message_uuid
+        - created
+        - copied_messages
+      properties:
+        conversation_id:
+          type: string
+        branch_id:
+          type: string
+        source_branch_id:
+          type: string
+        fork_from_message_uuid:
+          type: string
+        created:
+          type: boolean
+        copied_messages:
+          type: integer
+
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - service
+        - base_url
+        - default_model
+        - database
+        - time
+        - retrieval_enabled_by_default
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        service:
+          type: string
+        base_url:
+          type: string
+        default_model:
+          type: string
+        database:
+          type: string
+          enum: [ok, error]
+        database_error:
+          type: string
+          nullable: true
+        retrieval_enabled_by_default:
+          type: boolean
+        time:
+          type: string
+          format: date-time
+
+    ModelListItem:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          nullable: true
+        created:
+          type: integer
+          nullable: true
+        object:
+          type: string
+          nullable: true
+        owned_by:
+          type: string
+          nullable: true
+
+    ModelListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelListItem'
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: true
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      operationId: health
+      responses:
+        '200':
+          description: Service health info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /generate:
+    post:
+      tags: [Generation]
+      summary: Generate LLM response with conversation memory support
+      operationId: generate
+      description: |
+        Main endpoint for model inference.
+        Pipeline:
+          1. Ensures conversation exists
+          2. Optionally creates/forks a branch
+          3. Builds memory context
+          4. Calls upstream LLM
+          5. Validates response
+          6. Persists user+assistant messages
+          7. Optionally refreshes summary and sticky facts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LLMRequest'
+      responses:
+        '200':
+          description: Successful generation
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+            X-Latency-Ms:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LLMResponse'
+        '404':
+          description: Branch or fork source not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Payload validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '502':
+          description: Upstream LLM or response processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /conversations/{conversation_id}/messages:
+    get:
+      tags: [Conversations]
+      summary: Get recent messages from a conversation branch
+      operationId: getConversationMessages
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Recent messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationMessagesResponse'
+
+  /conversations/{conversation_id}/summary:
+    get:
+      tags: [Memory]
+      summary: Get stored summary for conversation branch
+      operationId: getConversationSummary
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: Summary info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationSummaryResponse'
+
+  /conversations/{conversation_id}/summary/refresh:
+    post:
+      tags: [Memory]
+      summary: Force summary refresh for a conversation branch
+      operationId: refreshConversationSummary
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+        - name: model
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Summary refresh result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshSummaryResponse'
+        '404':
+          description: Branch not found in some flows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /conversations/{conversation_id}/facts:
+    get:
+      tags: [Memory]
+      summary: Get sticky facts for conversation branch
+      operationId: getConversationFacts
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: Sticky facts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationFactsResponse'
+
+  /conversations/{conversation_id}/facts/refresh:
+    post:
+      tags: [Memory]
+      summary: Force sticky facts refresh for a conversation branch
+      operationId: refreshConversationFacts
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+        - name: model
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Sticky facts refresh result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshFactsResponse'
+
+  /conversations/{conversation_id}/branches:
+    get:
+      tags: [Branches]
+      summary: List branches for a conversation
+      operationId: listConversationBranches
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Branch list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchListResponse'
+
+    post:
+      tags: [Branches]
+      summary: Create a new branch from an existing message checkpoint
+      operationId: createConversationBranch
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: fork_from_message_uuid
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: source_branch_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: main
+      responses:
+        '200':
+          description: Branch creation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchCreateResponse'
+        '404':
+          description: Source message not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /models:
+    get:
+      tags: [Models]
+      summary: List upstream available models
+      operationId: listModels
+      responses:
+        '200':
+          description: Model list from upstream provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelListResponse'
+        '502':
+          description: Upstream model listing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
