@@ -409,39 +409,79 @@ class App(ctk.CTk):
         self.after(150, self._poll_queue)
 
     def _build_ui(self):
+        self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        left = ctk.CTkFrame(self)
-        left.grid(row=0, column=0, sticky="nsw", padx=(12, 6), pady=12)
+        left = ctk.CTkFrame(self, width=390, corner_radius=12)
+        left.grid(row=0, column=0, sticky="nsew", padx=(12, 6), pady=12)
+        left.grid_propagate(False)
+        left.grid_rowconfigure(2, weight=1)
         left.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(left, text="Настройки", font=ctk.CTkFont(size=18, weight="bold")).grid(
+        header = ctk.CTkFrame(left, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=14, pady=(14, 8))
+        header.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(header, text="llm_gateway_test", font=ctk.CTkFont(size=20, weight="bold")).grid(
+            row=0, column=0, sticky="w"
+        )
+        ctk.CTkLabel(
+            header,
+            text="Параметры запуска и диагностика memory-strategies",
+            font=ctk.CTkFont(size=12),
+            text_color=("gray30", "gray70"),
+        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+
+        controls = ctk.CTkScrollableFrame(left, corner_radius=10)
+        controls.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 10))
+        controls.grid_columnconfigure(0, weight=1)
+
+        settings_card = self._section_card(controls, "Настройки gateway", 0)
+        self._labeled_entry(settings_card, "Base URL", self.base_url_var, 0)
+        self._labeled_entry(settings_card, "Model", self.model_var, 2)
+        self._labeled_entry(settings_card, "max_tokens", self.max_tokens_var, 4)
+        self._labeled_entry(settings_card, "history_limit", self.history_limit_var, 6)
+        self._labeled_entry(settings_card, "temperature", self.temperature_var, 8)
+
+        actions_card = self._section_card(controls, "Действия", 1)
+        ctk.CTkButton(actions_card, text="Проверить /health", command=self.check_health, height=36).grid(
+            row=0, column=0, sticky="ew", padx=12, pady=(12, 6)
+        )
+        ctk.CTkButton(actions_card, text="Загрузить JSON диалога", command=self.load_dialog, height=36).grid(
+            row=1, column=0, sticky="ew", padx=12, pady=6
+        )
+        ctk.CTkButton(actions_card, text="Запустить тест", command=self.run_tests, height=38).grid(
+            row=2, column=0, sticky="ew", padx=12, pady=6
+        )
+        ctk.CTkButton(actions_card, text="Экспорт отчёта", command=self.export_report, height=36).grid(
+            row=3, column=0, sticky="ew", padx=12, pady=(6, 12)
+        )
+
+        hint_card = self._section_card(controls, "Что проверяется", 2)
+        hint_text = ctk.CTkTextbox(hint_card, height=120, wrap="word")
+        hint_text.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 12))
+        hint_text.insert(
+            "end",
+            "• Window — хранение последних сообщений
+"
+            "• Facts — сохранение sticky facts
+"
+            "• Window (Branching) — отдельная ветка с проверкой fork
+
+"
+            "Сравнение идёт по стабильности ответов, токенам и удобству."
+        )
+        hint_text.configure(state="disabled")
+
+        log_card = ctk.CTkFrame(left, corner_radius=10)
+        log_card.grid(row=2, column=0, sticky="nsew", padx=12, pady=(0, 12))
+        log_card.grid_rowconfigure(1, weight=1)
+        log_card.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(log_card, text="Лог выполнения", font=ctk.CTkFont(size=16, weight="bold")).grid(
             row=0, column=0, sticky="w", padx=12, pady=(12, 8)
         )
-
-        self._labeled_entry(left, "Base URL", self.base_url_var, 1)
-        self._labeled_entry(left, "Model", self.model_var, 2)
-        self._labeled_entry(left, "max_tokens", self.max_tokens_var, 3)
-        self._labeled_entry(left, "history_limit", self.history_limit_var, 4)
-        self._labeled_entry(left, "temperature", self.temperature_var, 5)
-
-        ctk.CTkButton(left, text="Проверить /health", command=self.check_health).grid(
-            row=6, column=0, sticky="ew", padx=12, pady=(12, 6)
-        )
-        ctk.CTkButton(left, text="Загрузить JSON диалога", command=self.load_dialog).grid(
-            row=7, column=0, sticky="ew", padx=12, pady=6
-        )
-        ctk.CTkButton(left, text="Запустить тест", command=self.run_tests).grid(
-            row=8, column=0, sticky="ew", padx=12, pady=6
-        )
-        ctk.CTkButton(left, text="Экспорт отчёта", command=self.export_report).grid(
-            row=9, column=0, sticky="ew", padx=12, pady=(6, 12)
-        )
-
-        self.status_box = ctk.CTkTextbox(left, width=340, height=520)
-        self.status_box.grid(row=10, column=0, sticky="nsew", padx=12, pady=(0, 12))
-        left.grid_rowconfigure(10, weight=1)
+        self.status_box = ctk.CTkTextbox(log_card, width=340, height=320, wrap="word")
+        self.status_box.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self._log("Приложение готово. Загрузите диалог и запустите тест.")
 
         right = ctk.CTkTabview(self)
@@ -461,10 +501,24 @@ class App(ctk.CTk):
 
         self.last_report: Optional[Dict[str, Any]] = None
 
+    def _section_card(self, parent, title: str, row: int):
+        card = ctk.CTkFrame(parent, corner_radius=10)
+        card.grid(row=row, column=0, sticky="ew", padx=2, pady=(0, 10))
+        card.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=16, weight="bold")).grid(
+            row=0, column=0, sticky="w", padx=12, pady=(12, 6)
+        )
+        return card
+
     def _labeled_entry(self, parent, label: str, var, row: int):
-        ctk.CTkLabel(parent, text=label).grid(row=row, column=0, sticky="w", padx=12, pady=(6, 0))
-        entry = ctk.CTkEntry(parent, textvariable=var, width=320)
-        entry.grid(row=row + 1, column=0, sticky="ew", padx=12, pady=(0, 6))
+        ctk.CTkLabel(
+            parent,
+            text=label,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("gray20", "gray80"),
+        ).grid(row=row, column=0, sticky="w", padx=12, pady=(8, 2))
+        entry = ctk.CTkEntry(parent, textvariable=var, height=34)
+        entry.grid(row=row + 1, column=0, sticky="ew", padx=12, pady=(0, 8))
 
     def _log(self, message: str):
         ts = time.strftime("%H:%M:%S")
