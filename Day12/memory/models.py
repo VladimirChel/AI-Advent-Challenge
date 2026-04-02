@@ -22,15 +22,34 @@ class TaskStatus(str, Enum):
     cancelled = "cancelled"
 
 
+class TaskStage(str, Enum):
+    planning = "planning"
+    execution = "execution"
+    validation = "validation"
+    done = "done"
+
+
+class ExpectedAction(str, Enum):
+    assistant_continue = "assistant_continue"
+    user_reply = "user_reply"
+    run_validation = "run_validation"
+    finish = "finish"
+
+
 class TaskMemory(BaseModel):
     task_id: str
     status: TaskStatus = TaskStatus.active
+    stage: TaskStage = TaskStage.planning
     goal: str | None = None
     current_step: str | None = None
+    expected_action: ExpectedAction = ExpectedAction.assistant_continue
+    blocked_reason: str | None = None
     plan: list[str] = Field(default_factory=list)
     completed_steps: list[str] = Field(default_factory=list)
     constraints: list[str] = Field(default_factory=list)
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
+    state_version: int = 1
+    last_event: str | None = None
     task_state: dict[str, Any] = Field(default_factory=dict)
     created_at: str | None = None
     updated_at: str | None = None

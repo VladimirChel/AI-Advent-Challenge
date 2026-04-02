@@ -85,12 +85,17 @@ def init_db() -> None:
                     branch_id TEXT NOT NULL DEFAULT 'main',
                     task_id TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'active',
+                    stage TEXT NOT NULL DEFAULT 'planning',
                     goal TEXT,
                     current_step TEXT,
+                    expected_action TEXT NOT NULL DEFAULT 'assistant_continue',
+                    blocked_reason TEXT,
                     plan JSONB NOT NULL DEFAULT '[]',
                     completed_steps JSONB NOT NULL DEFAULT '[]',
                     constraints JSONB NOT NULL DEFAULT '[]',
                     artifacts JSONB NOT NULL DEFAULT '[]',
+                    state_version INTEGER NOT NULL DEFAULT 1,
+                    last_event TEXT,
                     task_state JSONB NOT NULL DEFAULT '{}',
                     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -101,8 +106,34 @@ def init_db() -> None:
 
             cur.execute(
                 """
+                CREATE TABLE IF NOT EXISTS task_transitions (
+                    id BIGSERIAL PRIMARY KEY,
+                    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                    branch_id TEXT NOT NULL DEFAULT 'main',
+                    task_id TEXT NOT NULL,
+                    from_status TEXT,
+                    to_status TEXT NOT NULL,
+                    from_stage TEXT,
+                    to_stage TEXT,
+                    event TEXT NOT NULL,
+                    reason TEXT,
+                    payload JSONB NOT NULL DEFAULT '{}',
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+
+            cur.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_task_memory_updated
                 ON task_memory (conversation_id, branch_id, updated_at DESC)
+                """
+            )
+
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_task_transitions_lookup
+                ON task_transitions (conversation_id, branch_id, task_id, created_at DESC)
                 """
             )
 
@@ -172,6 +203,22 @@ def init_db() -> None:
             cur.execute("ALTER TABLE conversation_summaries ADD COLUMN IF NOT EXISTS user_id TEXT")
             cur.execute("ALTER TABLE conversation_facts ADD COLUMN IF NOT EXISTS user_id TEXT")
             cur.execute("ALTER TABLE memory_chunks ADD COLUMN IF NOT EXISTS user_id TEXT")
+            cur.execute("ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS phase TEXT")
+            cur.execute("ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS next_action TEXT")
+            cur.execute("ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'planning'")
+            cur.execute("ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS expected_action TEXT NOT NULL DEFAULT 'assistant_continue'")
+            cur.execute("ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS blocked_reason TEXT")
+            cur.execute("ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS state_version INTEGER NOT NULL DEFAULT 1")
+            cur.execute("ALTER TABLE task_memory ADD COLUMN IF NOT EXISTS last_event TEXT")
+            cur.execute("ALTER TABLE task_transitions ADD COLUMN IF NOT EXISTS from_phase TEXT")
+            cur.execute("ALTER TABLE task_transitions ADD COLUMN IF NOT EXISTS to_phase TEXT")
+            cur.execute("ALTER TABLE task_transitions ADD COLUMN IF NOT EXISTS from_stage TEXT")
+            cur.execute("ALTER TABLE task_transitions ADD COLUMN IF NOT EXISTS to_stage TEXT")
+
+            cur.execute("UPDATE task_memory SET stage = phase WHERE stage = 'planning' AND phase IS NOT NULL")
+            cur.execute("UPDATE task_memory SET expected_action = COALESCE(next_action, expected_action) WHERE expected_action = 'assistant_continue'")
+            cur.execute("UPDATE task_transitions SET from_stage = from_phase WHERE from_stage IS NULL AND from_phase IS NOT NULL")
+            cur.execute("UPDATE task_transitions SET to_stage = to_phase WHERE to_stage IS NULL AND to_phase IS NOT NULL")
 
             cur.execute(
                 """
