@@ -13,6 +13,7 @@ The service supports:
 - working memory tied to a specific task;
 - long-term memory with summaries and extracted facts;
 - retrieval of relevant memory chunks for the current request;
+- project invariants stored outside the dialogue and enforced as hard constraints;
 - branching conversations through `conversation_id` and `branch_id`;
 - response validation rules, including JSON checks and required fragments;
 - storage of dialogue history and memory artifacts in PostgreSQL.
@@ -22,11 +23,13 @@ The service supports:
 When a user sends a request to `/generate`, the system:
 
 1. Loads recent dialogue history.
-2. Adds task context if `task_id` is provided.
-3. Restores long-term summary and sticky facts.
-4. Retrieves relevant memory chunks based on the current user input.
-5. Builds the final prompt and sends it to the model.
-6. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
+2. Loads project invariants from a dedicated file outside the chat history.
+3. Adds task context if `task_id` is provided.
+4. Restores long-term summary and sticky facts.
+5. Retrieves relevant memory chunks based on the current user input.
+6. Builds the final prompt and sends it to the model.
+7. Runs an invariant compliance check against the draft answer.
+8. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
 
 This makes the assistant more consistent across long dialogues and better suited for multi-step workflows.
 
@@ -36,9 +39,11 @@ This makes the assistant more consistent across long dialogues and better suited
 - `api/generate.py` - main generation endpoint and post-processing pipeline.
 - `llm/` - request schemas, model client, and output validation.
 - `memory/` - orchestration of short-term, working, and long-term memory.
+- `invariants/` - loading, prompt injection, and compliance checks for hard project constraints.
 - `repositories/` - persistence layer for messages, facts, summaries, and chunks.
 - `tasks/` - task-aware memory management.
 - `db.py` - PostgreSQL connection pool and schema initialization.
+- `docs/assistant_invariants.json` - dedicated source of truth for architectural, technical, stack, and business invariants.
 
 ## API
 
@@ -90,6 +95,10 @@ Returns service status, database state, default model, and current UTC time.
 
 Returns the list of models available through the configured LLM provider.
 
+### `GET /invariants/current`
+
+Returns the current project invariant set loaded from the dedicated invariants file. Requires authentication.
+
 ## Tech Stack
 
 - Python
@@ -109,7 +118,23 @@ Key parameters:
 - `PROXYAPI_BASE_URL` - base URL of the provider;
 - `DEFAULT_MODEL` - default model identifier;
 - `DATABASE_URL` - PostgreSQL connection string;
+- `INVARIANTS_FILE` - path to the JSON file with hard project invariants;
 - `REQUEST_TIMEOUT_SECONDS` - timeout for LLM requests.
+
+## Invariants
+
+Project invariants are stored separately from the dialogue in `docs/assistant_invariants.json`.
+
+The backend uses them in two places:
+
+- while assembling the system context for the main model call;
+- while checking the generated answer for invariant violations before returning it.
+
+Because of this, the assistant:
+
+- explicitly reports which invariants were taken into account;
+- refuses options that violate architecture, stack, technical, or business constraints;
+- does not allow chat messages to rewrite the invariant set.
 
 ## Run
 

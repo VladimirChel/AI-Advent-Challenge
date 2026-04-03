@@ -5,6 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from auth.dependencies import get_current_user
 from auth.schemas import PublicUser
+from invariants.service import (
+    build_invariant_refusal,
+    check_response_against_invariants,
+    load_project_invariants,
+)
 from llm.client import call_chat_completion, extract_text_from_chat_completion, get_usage
 from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse
 from llm.service import validate_output
@@ -57,6 +62,16 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     content, finish_reason = extract_text_from_chat_completion(response)
     if not content.strip():
         raise HTTPException(status_code=502, detail="empty_model_response")
+
+    invariants = load_project_invariants()
+    invariant_check = check_response_against_invariants(
+        user_messages=payload.messages,
+        assistant_response=content,
+        model=payload.model,
+        user_id=user_id,
+    )
+    if not invariant_check.allowed:
+        content = build_invariant_refusal(invariant_check)
 
     validate_output(content, payload.validation)
     usage = get_usage(response)
@@ -117,4 +132,8 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         long_term_summary_used=agent_ctx.long_term_summary is not None,
         retrieval_used=bool(agent_ctx.retrieved_items),
         retrieval_messages_used=len(agent_ctx.retrieved_items),
+        project_invariants_used=bool(invariants.invariants),
+        project_invariants_count=len(invariants.invariants),
+        invariant_check_passed=invariant_check.allowed,
+        invariant_violations=[item.id for item in invariant_check.violations],
     )

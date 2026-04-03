@@ -96,9 +96,11 @@ def root() -> dict[str, Any]:
 
 from api.generate import router as generate_router
 from api.auth import router as auth_router
+from api.invariants import router as invariants_router
 
 app.include_router(auth_router)
 app.include_router(generate_router)
+app.include_router(invariants_router)
 
 if __name__ == "__main__":
     import uvicorn

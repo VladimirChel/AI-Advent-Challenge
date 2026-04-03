@@ -50,3 +50,8 @@ class GenerateResponse(BaseModel):
     long_term_summary_used: bool = False
     retrieval_used: bool = False
     retrieval_messages_used: int = 0
+
+    project_invariants_used: bool = False
+    project_invariants_count: int = 0
+    invariant_check_passed: bool = True
+    invariant_violations: list[str] = Field(default_factory=list)

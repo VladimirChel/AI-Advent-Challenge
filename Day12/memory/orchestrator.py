@@ -1,3 +1,4 @@
+from invariants.service import build_invariants_message
 from llm.schemas import ChatMessage
 from memory.models import AgentMemoryContext, MemoryPolicy
 from memory.short_term import load_short_term_memory
@@ -51,6 +52,10 @@ def build_agent_context(
 
 def materialize_context_messages(ctx: AgentMemoryContext) -> list[ChatMessage]:
     result: list[ChatMessage] = []
+
+    invariants_msg = build_invariants_message()
+    if invariants_msg:
+        result.append(invariants_msg)
 
     working_msg = build_working_memory_message(ctx.working_memory)
     if working_msg:
