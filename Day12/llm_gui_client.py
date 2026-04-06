@@ -39,6 +39,7 @@ class LLMTesterApp(ctk.CTk):
         self.token_preview_var = ctk.StringVar(value="not authenticated")
         self.include_history_var = ctk.BooleanVar(value=True)
         self.require_json_var = ctk.BooleanVar(value=False)
+        self.show_task_transition_in_chat_var = ctk.BooleanVar(value=True)
 
         self.access_token: str | None = None
         self.current_user: dict[str, Any] | None = None
@@ -199,6 +200,13 @@ class LLMTesterApp(ctk.CTk):
             request_box,
             text="Require JSON response",
             variable=self.require_json_var,
+        ).grid(row=subrow, column=0, padx=12, pady=(0, 10), sticky="w")
+        subrow += 1
+
+        ctk.CTkSwitch(
+            request_box,
+            text="Show task transitions in chat",
+            variable=self.show_task_transition_in_chat_var,
         ).grid(row=subrow, column=0, padx=12, pady=(0, 10), sticky="w")
         subrow += 1
 
@@ -369,6 +377,7 @@ class LLMTesterApp(ctk.CTk):
             "top_p": 1.0,
             "presence_penalty": 0.0,
             "frequency_penalty": 0.0,
+            "show_task_transition_in_chat": self.show_task_transition_in_chat_var.get(),
         }
 
         if self.require_json_var.get():
@@ -634,6 +643,9 @@ class LLMTesterApp(ctk.CTk):
             if result["ok"]:
                 assistant_text = self._extract_assistant_text(result["body"])
                 self.append_chat("assistant", assistant_text)
+                task_meta_text = self._extract_task_meta_text(result["body"])
+                if task_meta_text:
+                    self.append_chat("task", task_meta_text)
                 if result["user_message"]:
                     self.history.append({"role": "user", "content": str(result["user_message"])})
                 self.history.append({"role": "assistant", "content": assistant_text})
@@ -650,6 +662,51 @@ class LLMTesterApp(ctk.CTk):
                     return value
             return json.dumps(body, ensure_ascii=False, indent=2)
         return str(body)
+
+    def _extract_task_meta_text(self, body: Any) -> str:
+        if not isinstance(body, dict):
+            return ""
+
+        lines: list[str] = []
+        task_state = body.get("task_state")
+        task_transition = body.get("task_transition")
+        task_error = body.get("task_transition_error")
+
+        if isinstance(task_state, dict):
+            lines.append(
+                "State: "
+                f"task_id={task_state.get('task_id')} | "
+                f"status={task_state.get('status')} | "
+                f"stage={task_state.get('stage')} | "
+                f"expected_action={task_state.get('expected_action')}"
+            )
+            allowed_events = task_state.get("allowed_events")
+            if allowed_events:
+                lines.append(f"Allowed events: {', '.join(str(item) for item in allowed_events)}")
+            current_step = task_state.get("current_step")
+            if current_step:
+                lines.append(f"Current step: {current_step}")
+            blocked_reason = task_state.get("blocked_reason")
+            if blocked_reason:
+                lines.append(f"Blocked reason: {blocked_reason}")
+
+        if isinstance(task_transition, dict):
+            if task_transition.get("applied"):
+                lines.append(
+                    "Transition: "
+                    f"{task_transition.get('from_stage')} -> {task_transition.get('to_stage')} "
+                    f"(event={task_transition.get('event')})"
+                )
+            elif task_transition.get("event"):
+                lines.append(
+                    "Transition not applied: "
+                    f"event={task_transition.get('event')}"
+                )
+
+        if isinstance(task_error, dict) and task_error.get("message"):
+            lines.append(f"Transition error: {task_error.get('message')}")
+
+        return "\n".join(lines)
 
     def _format_error(self, result: dict[str, Any]) -> str:
         return f"Request error ({result['status_code']}):\n{self._format_body(result['body'])}"

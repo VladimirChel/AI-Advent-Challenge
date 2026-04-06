@@ -28,6 +28,32 @@ class GenerateRequest(BaseModel):
     presence_penalty: float = 0.0
     frequency_penalty: float = 0.0
     validation: ResponseValidationRules | None = None
+    show_task_transition_in_chat: bool = True
+
+
+class TaskStatePayload(BaseModel):
+    task_id: str
+    status: str
+    stage: str
+    expected_action: str
+    current_step: str | None = None
+    blocked_reason: str | None = None
+    allowed_events: list[str] = Field(default_factory=list)
+
+
+class TaskTransitionPayload(BaseModel):
+    applied: bool
+    from_status: str | None = None
+    to_status: str | None = None
+    from_stage: str | None = None
+    to_stage: str | None = None
+    event: str | None = None
+    reason: str | None = None
+
+
+class TaskTransitionErrorPayload(BaseModel):
+    code: str
+    message: str
 
 
 class GenerateResponse(BaseModel):
@@ -55,3 +81,7 @@ class GenerateResponse(BaseModel):
     project_invariants_count: int = 0
     invariant_check_passed: bool = True
     invariant_violations: list[str] = Field(default_factory=list)
+
+    task_state: TaskStatePayload | None = None
+    task_transition: TaskTransitionPayload | None = None
+    task_transition_error: TaskTransitionErrorPayload | None = None

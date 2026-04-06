@@ -88,6 +88,8 @@ def apply_task_event(
     blocked_reason: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> tuple[TaskMemory, dict[str, Any]]:
+    _assert_business_rules(task, event)
+
     allowed_status = _STATUS_TRANSITIONS.get(task.status, {})
     if event not in allowed_status:
         raise InvalidTaskTransition(f"Event '{event.value}' is not allowed from status '{task.status.value}'")
@@ -121,6 +123,22 @@ def apply_task_event(
     updated.task_state = deepcopy(updated.task_state)
     updated.task_state["waiting_for_user"] = updated.expected_action == ExpectedAction.user_reply
 
+    if event == TaskEvent.plan_ready:
+        updated.task_state["plan_approved"] = True
+        updated.task_state["plan_proposed"] = True
+
+    if event == TaskEvent.submit_for_validation:
+        updated.task_state["validation_requested"] = True
+        updated.task_state["validation_passed"] = False
+
+    if event == TaskEvent.validation_failed:
+        updated.task_state["validation_requested"] = False
+        updated.task_state["validation_passed"] = False
+
+    if event == TaskEvent.validation_passed:
+        updated.task_state["validation_requested"] = True
+        updated.task_state["validation_passed"] = True
+
     if event == TaskEvent.pause:
         updated.task_state["resume_stage"] = previous_stage.value
         updated.blocked_reason = blocked_reason or updated.blocked_reason
@@ -147,3 +165,37 @@ def apply_task_event(
         "state_version": updated.state_version,
     }
     return updated, transition
+
+
+def get_allowed_task_events(task: TaskMemory) -> list[TaskEvent]:
+    allowed_status = _STATUS_TRANSITIONS.get(task.status, {})
+
+    if task.status == TaskStatus.paused:
+        candidates = list(allowed_status.keys())
+    else:
+        candidates = [
+            event
+            for event in allowed_status.keys()
+            if event in _STAGE_TRANSITIONS.get(task.stage, {})
+        ]
+
+    result: list[TaskEvent] = []
+    for event in candidates:
+        try:
+            _assert_business_rules(task, event)
+        except InvalidTaskTransition:
+            continue
+        result.append(event)
+    return result
+
+
+def _assert_business_rules(task: TaskMemory, event: TaskEvent) -> None:
+    task_state = task.task_state if isinstance(task.task_state, dict) else {}
+    plan_approved = bool(task_state.get("plan_approved"))
+    validation_requested = bool(task_state.get("validation_requested"))
+
+    if event in {TaskEvent.execute_step, TaskEvent.submit_for_validation} and not plan_approved:
+        raise InvalidTaskTransition("Implementation is blocked until the plan is explicitly approved.")
+
+    if event == TaskEvent.validation_passed and not validation_requested:
+        raise InvalidTaskTransition("Finalization is blocked until the task has been submitted for validation.")

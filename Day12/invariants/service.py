@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
-from functools import lru_cache
 from pathlib import Path
 
 from config import DEFAULT_MODEL, INVARIANTS_FILE
@@ -10,19 +10,38 @@ from invariants.schemas import InvariantCheckResult, InvariantViolation, Project
 from llm.client import call_chat_completion, extract_text_from_chat_completion
 from llm.schemas import ChatMessage
 
+logger = logging.getLogger("agent_app.invariants")
 
-@lru_cache(maxsize=1)
+
+def _normalize_text(text: str) -> str:
+    return " ".join((text or "").lower().split())
+
+
+_invariants_cache: tuple[str | None, ProjectInvariants] | None = None
+
+
 def load_project_invariants() -> ProjectInvariants:
+    global _invariants_cache
+
     path = Path(INVARIANTS_FILE)
     if not path.exists():
-        return ProjectInvariants()
+        _invariants_cache = (None, ProjectInvariants())
+        return _invariants_cache[1]
 
     raw = path.read_text(encoding="utf-8").strip()
-    if not raw:
-        return ProjectInvariants()
+    cache_key = raw or "__empty__"
 
-    data = json.loads(raw)
-    return ProjectInvariants.model_validate(data)
+    if _invariants_cache and _invariants_cache[0] == cache_key:
+        return _invariants_cache[1]
+
+    if not raw:
+        parsed = ProjectInvariants()
+    else:
+        data = json.loads(raw)
+        parsed = ProjectInvariants.model_validate(data)
+
+    _invariants_cache = (cache_key, parsed)
+    return parsed
 
 
 def build_invariants_message() -> ChatMessage | None:
@@ -65,6 +84,128 @@ def _build_checker_payload(
         },
         ensure_ascii=False,
     )
+
+
+def _contains_explicit_override_attempt(text: str) -> bool:
+    normalized = _normalize_text(text)
+    markers = [
+        "ignore invariant",
+        "ignore invariants",
+        "override invariant",
+        "override invariants",
+        "disable invariant",
+        "disable invariants",
+        "bypass invariant",
+        "bypass invariants",
+        "rewrite invariant",
+        "rewrite invariants",
+        "ignore the invariants",
+        "отключи инвариант",
+        "отключи инварианты",
+        "игнорируй инвариант",
+        "игнорируй инварианты",
+        "обойди инвариант",
+        "обойди инварианты",
+        "перепиши инвариант",
+        "перепиши инварианты",
+        "измени инвариант",
+        "измени инварианты",
+        "отключи инвариант",
+        "игнорируй инвариант",
+        "игнорируй инварианты",
+        "обойди инвариант",
+        "перепиши инвариант",
+        "измени инвариант",
+    ]
+    return any(marker in normalized for marker in markers)
+
+
+def _contains_real_invariant_break(text: str) -> bool:
+    normalized = _normalize_text(text)
+    markers = [
+        "сменим стек",
+        "перейдем на другой стек",
+        "откажемся от fastapi",
+        "уберем postgresql",
+        "объединим всю память в один слой",
+        "ignore invariants",
+        "disable invariants",
+        "override invariants",
+        "change the stack",
+        "switch the stack",
+        "move to another stack",
+        "drop fastapi",
+        "remove fastapi",
+        "remove postgresql",
+        "drop postgresql",
+        "merge all memory into one layer",
+        "сменим стек",
+        "поменяем стек",
+        "перейдем на другой стек",
+        "откажемся от fastapi",
+        "уберем fastapi",
+        "уберем postgresql",
+        "объединим всю память в один слой",
+        "игнорируй инварианты",
+        "отключи инварианты",
+        "перепиши инварианты",
+    ]
+    return any(marker in normalized for marker in markers)
+
+
+def _reason_looks_meta(reason: str) -> bool:
+    normalized = _normalize_text(reason)
+    markers = [
+        "incorrectly interpret",
+        "incorrectly interpreted",
+        "does not refuse",
+        "did not refuse",
+        "should refuse",
+        "should have refused",
+        "should have declined",
+        "does not violate",
+        "doesn't violate",
+        "\u043d\u0435\u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e \u0438\u043d\u0442\u0435\u0440\u043f\u0440\u0435\u0442",
+        "\u043d\u0435 \u0434\u043e\u043b\u0436\u0435\u043d \u0443\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0442\u044c",
+        "\u0434\u043e\u043b\u0436\u0435\u043d \u0431\u044b\u043b \u043e\u0442\u043a\u0430\u0437\u0430\u0442\u044c\u0441\u044f",
+        "\u0434\u043e\u043b\u0436\u0435\u043d \u043e\u0442\u043a\u0430\u0437\u0430\u0442\u044c\u0441\u044f",
+        "\u043d\u0435 \u043e\u0442\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f",
+        "\u043d\u0435 \u043d\u0430\u0440\u0443\u0448\u0430\u0435\u0442 \u0438\u043d\u0432\u0430\u0440\u0438\u0430\u043d\u0442\u044b",
+    ]
+    return any(marker in normalized for marker in markers)
+
+
+def _is_meta_false_positive(
+    *,
+    result: InvariantCheckResult,
+    user_messages: list[ChatMessage],
+    assistant_response: str,
+) -> bool:
+    if result.allowed or not result.violations:
+        return False
+
+    violation_ids = {item.id for item in result.violations}
+    if not violation_ids.issubset({"BUS-1", "BUS-2", "INVARIANT-REFUSAL"}):
+        return False
+
+    combined_user_text = "\n".join(message.content for message in user_messages if message.role == "user")
+    if _contains_explicit_override_attempt(combined_user_text):
+        return False
+
+    if _contains_real_invariant_break(assistant_response):
+        return False
+
+    meta_markers = [
+        "неправильно интерпрет",
+        "incorrectly interpret",
+        "не отказывает",
+        "does not refuse",
+        "should refuse",
+        "не нарушает инварианты",
+        "does not violate",
+    ]
+    reasons = " ".join(item.reason for item in result.violations)
+    return _reason_looks_meta(reasons)
 
 
 def _extract_json_object(content: str) -> dict | None:
@@ -132,8 +273,10 @@ def _run_fallback_invariant_check(
     )
     content, _ = extract_text_from_chat_completion(response)
     text = (content or "").strip()
+    logger.debug("Invariant checker fallback raw response: %s", text)
 
     if text.upper().startswith("ALLOWED"):
+        logger.debug("Invariant checker fallback decided: allowed")
         return InvariantCheckResult(allowed=True)
 
     relevant_match = re.search(r"RELEVANT:\s*(.+)", text, flags=re.IGNORECASE)
@@ -150,7 +293,7 @@ def _run_fallback_invariant_check(
     else:
         reason = "Ответ нарушает инварианты проекта, поэтому его нельзя предлагать пользователю."
 
-    return InvariantCheckResult(
+    result = InvariantCheckResult(
         allowed=False,
         relevant_invariants=relevant,
         violations=[
@@ -162,6 +305,8 @@ def _run_fallback_invariant_check(
         ],
         reasoning_summary=reason,
     )
+    logger.debug("Invariant checker fallback parsed result: %s", result.model_dump())
+    return result
 
 
 def check_response_against_invariants(
@@ -182,7 +327,11 @@ def check_response_against_invariants(
             content=(
                 "You are an invariant compliance checker. "
                 "Return strict JSON only with keys: allowed, relevant_invariants, violations, reasoning_summary. "
-                "Set allowed=false if the assistant response suggests or endorses a solution that violates any project invariant. "
+                "Set allowed=false only if the assistant response itself proposes, endorses, or permits a solution that directly violates a project invariant. "
+                "Do not reject benign requests, planning requests, analysis, or performance improvements unless they explicitly break an invariant. "
+                "Do not create meta-violations about whether the assistant should or should not refuse. "
+                "Do not mark BUS-1 or BUS-2 as violated unless the response explicitly says invariants should be ignored, rewritten, or bypassed, or explicitly recommends a violating solution. "
+                "If the response is compatible with the invariants, set allowed=true. "
                 "Each violation must include id, title, and reason."
             ),
         ),
@@ -200,19 +349,47 @@ def check_response_against_invariants(
         user_id=user_id,
     )
     content, _ = extract_text_from_chat_completion(response)
+    logger.debug("Invariant checker raw response: %s", content)
 
     payload = _extract_json_object(content)
     if payload is not None:
+        logger.debug("Invariant checker extracted JSON payload: %s", payload)
         try:
-            return InvariantCheckResult.model_validate(payload)
+            result = InvariantCheckResult.model_validate(payload)
+            if _is_meta_false_positive(
+                result=result,
+                user_messages=user_messages,
+                assistant_response=assistant_response,
+            ):
+                logger.debug(
+                    "Invariant checker false positive suppressed after JSON parse: %s",
+                    result.model_dump(),
+                )
+                return InvariantCheckResult(allowed=True)
+            logger.debug("Invariant checker validated result: %s", result.model_dump())
+            return result
         except Exception:
-            pass
+            logger.exception("Invariant checker payload validation failed")
+    else:
+        logger.debug("Invariant checker did not produce parseable JSON")
 
-    return _run_fallback_invariant_check(
+    result = _run_fallback_invariant_check(
         payload_text=payload_text,
         model=model,
         user_id=user_id,
     )
+    if _is_meta_false_positive(
+        result=result,
+        user_messages=user_messages,
+        assistant_response=assistant_response,
+    ):
+        logger.debug(
+            "Invariant checker false positive suppressed after fallback: %s",
+            result.model_dump(),
+        )
+        return InvariantCheckResult(allowed=True)
+    logger.debug("Invariant checker final fallback result: %s", result.model_dump())
+    return result
 
 
 def build_invariant_refusal(result: InvariantCheckResult) -> str:

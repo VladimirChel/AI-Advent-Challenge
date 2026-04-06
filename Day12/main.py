@@ -10,6 +10,7 @@ from config import (
     APP_NAME,
     APP_VERSION,
     DEFAULT_MODEL,
+    LOG_LEVEL,
     PROXYAPI_API_KEY,
     PROXYAPI_BASE_URL,
     REQUEST_TIMEOUT_SECONDS,
@@ -20,7 +21,7 @@ from auth.schemas import PublicUser
 
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("agent_app")

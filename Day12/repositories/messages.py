@@ -3,6 +3,30 @@ from llm.schemas import ChatMessage
 from db import get_db_connection
 
 
+def ensure_conversation(conversation_id: str, user_id: str | None, model: str) -> None:
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO conversations (id, user_id, model)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (id) DO NOTHING
+                """,
+                (conversation_id, user_id, model),
+            )
+            cur.execute(
+                """
+                UPDATE conversations
+                SET updated_at = NOW(),
+                    user_id = COALESCE(%s, user_id),
+                    model = %s
+                WHERE id = %s
+                """,
+                (user_id, model, conversation_id),
+            )
+        conn.commit()
+
+
 def save_messages(
     conversation_id: str,
     branch_id: str,

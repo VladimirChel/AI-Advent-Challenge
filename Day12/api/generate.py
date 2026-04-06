@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from auth.dependencies import get_current_user
 from auth.schemas import PublicUser
+from invariants.schemas import InvariantCheckResult
 from invariants.service import (
     build_invariant_refusal,
     check_response_against_invariants,
@@ -18,9 +19,9 @@ from memory.orchestrator import build_agent_context, materialize_context_message
 from repositories.conversations import assert_conversation_access
 from repositories.chunks import add_memory_chunks
 from repositories.facts import extract_candidate_facts, upsert_facts
-from repositories.messages import get_recent_messages_for_summary, save_messages
+from repositories.messages import ensure_conversation, get_recent_messages_for_summary, save_messages
 from repositories.summaries import build_summary_from_messages, upsert_conversation_summary
-from tasks.service import maybe_update_task_memory
+from tasks.workflow_service import build_task_transition_chat_note, maybe_update_task_memory
 
 router = APIRouter()
 
@@ -63,15 +64,34 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     if not content.strip():
         raise HTTPException(status_code=502, detail="empty_model_response")
 
-    invariants = load_project_invariants()
-    invariant_check = check_response_against_invariants(
-        user_messages=payload.messages,
+    ensure_conversation(conversation_id=conversation_id, user_id=user_id, model=payload.model)
+
+    task_update = maybe_update_task_memory(
+        conversation_id=conversation_id,
+        branch_id=branch_id,
+        task_id=payload.task_id,
+        input_messages=payload.messages,
         assistant_response=content,
-        model=payload.model,
-        user_id=user_id,
     )
-    if not invariant_check.allowed:
-        content = build_invariant_refusal(invariant_check)
+    task_note = build_task_transition_chat_note(task_update)
+
+    invariants = load_project_invariants()
+    task_transition_error = task_update.get("task_transition_error")
+    if task_transition_error:
+        content = task_note or "System: task state was not changed."
+        invariant_check = InvariantCheckResult(allowed=True)
+    else:
+        invariant_check = check_response_against_invariants(
+            user_messages=payload.messages,
+            assistant_response=content,
+            model=payload.model,
+            user_id=user_id,
+        )
+        if not invariant_check.allowed:
+            content = build_invariant_refusal(invariant_check)
+
+    if payload.show_task_transition_in_chat and task_note and not task_transition_error:
+        content = f"{content.rstrip()}\n\n{task_note}"
 
     validate_output(content, payload.validation)
     usage = get_usage(response)
@@ -83,14 +103,6 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         user_id=user_id,
         model=payload.model,
         messages=exchange_messages,
-    )
-
-    maybe_update_task_memory(
-        conversation_id=conversation_id,
-        branch_id=branch_id,
-        task_id=payload.task_id,
-        input_messages=payload.messages,
-        assistant_response=content,
     )
 
     facts = extract_candidate_facts(payload.messages)
@@ -136,4 +148,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         project_invariants_count=len(invariants.invariants),
         invariant_check_passed=invariant_check.allowed,
         invariant_violations=[item.id for item in invariant_check.violations],
+        task_state=task_update["task_state"],
+        task_transition=task_update["task_transition"],
+        task_transition_error=task_update["task_transition_error"],
     )

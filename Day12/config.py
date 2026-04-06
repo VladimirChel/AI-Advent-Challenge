@@ -9,6 +9,7 @@ APP_VERSION = os.getenv("APP_VERSION", "0.1.0").strip()
 APP_HOST = os.getenv("APP_HOST", "0.0.0.0").strip()
 APP_PORT = int(os.getenv("APP_PORT", "8000"))
 DEBUG = os.getenv("DEBUG", "false").strip().lower() in {"1", "true", "yes", "on"}
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if DEBUG else "INFO").strip().upper()
 
 PROXYAPI_API_KEY = os.getenv("PROXYAPI_API_KEY", "").strip()
 PROXYAPI_BASE_URL = os.getenv("PROXYAPI_BASE_URL", "https://openai.api.proxyapi.ru/v1").strip()

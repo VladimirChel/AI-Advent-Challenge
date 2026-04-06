@@ -7,8 +7,8 @@ from llm.client import call_chat_completion, extract_text_from_chat_completion, 
 from llm.service import validate_output
 from memory.models import MemoryPolicy
 from memory.orchestrator import build_agent_context, materialize_context_messages
-from repositories.messages import save_messages
-from tasks.service import maybe_update_task_memory
+from repositories.messages import ensure_conversation, save_messages
+from tasks.workflow_service import build_task_transition_chat_note, maybe_update_task_memory
 
 router = APIRouter()
 
@@ -49,6 +49,27 @@ def generate(payload: GenerateRequest) -> GenerateResponse:
     if not content.strip():
         raise HTTPException(status_code=502, detail="empty_model_response")
 
+    ensure_conversation(
+        conversation_id=conversation_id,
+        user_id=payload.user_id,
+        model=payload.model,
+    )
+
+    task_update = maybe_update_task_memory(
+        conversation_id=conversation_id,
+        branch_id=branch_id,
+        task_id=payload.task_id,
+        input_messages=payload.messages,
+        assistant_response=content,
+    )
+    task_transition_error = task_update.get("task_transition_error")
+    task_note = build_task_transition_chat_note(task_update)
+
+    if task_transition_error:
+        content = task_note or "System: task state was not changed."
+    elif payload.show_task_transition_in_chat and task_note:
+        content = f"{content.rstrip()}\n\n{task_note}"
+
     validation = validate_output(content, payload.validation)
     usage = get_usage(response)
 
@@ -58,14 +79,6 @@ def generate(payload: GenerateRequest) -> GenerateResponse:
         user_id=payload.user_id,
         model=payload.model,
         messages=[*payload.messages, ChatMessage(role="assistant", content=content)],
-    )
-
-    maybe_update_task_memory(
-        conversation_id=conversation_id,
-        branch_id=branch_id,
-        task_id=payload.task_id,
-        input_messages=payload.messages,
-        assistant_response=content,
     )
 
     latency_ms = int((time.perf_counter() - started) * 1000)
@@ -92,4 +105,7 @@ def generate(payload: GenerateRequest) -> GenerateResponse:
         long_term_summary_used=agent_ctx.long_term_summary is not None,
         retrieval_used=bool(agent_ctx.retrieved_items),
         retrieval_messages_used=len(agent_ctx.retrieved_items),
+        task_state=task_update["task_state"],
+        task_transition=task_update["task_transition"],
+        task_transition_error=task_update["task_transition_error"],
     )
