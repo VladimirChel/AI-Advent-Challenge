@@ -40,6 +40,8 @@ class LLMTesterApp(ctk.CTk):
         self.include_history_var = ctk.BooleanVar(value=True)
         self.require_json_var = ctk.BooleanVar(value=False)
         self.show_task_transition_in_chat_var = ctk.BooleanVar(value=True)
+        self.enable_mcp_var = ctk.BooleanVar(value=False)
+        self.mcp_server_script_var = ctk.StringVar(value="../Day16/server.py")
 
         self.access_token: str | None = None
         self.current_user: dict[str, Any] | None = None
@@ -209,6 +211,15 @@ class LLMTesterApp(ctk.CTk):
             variable=self.show_task_transition_in_chat_var,
         ).grid(row=subrow, column=0, padx=12, pady=(0, 10), sticky="w")
         subrow += 1
+
+        ctk.CTkSwitch(
+            request_box,
+            text="Enable MCP tools",
+            variable=self.enable_mcp_var,
+        ).grid(row=subrow, column=0, padx=12, pady=(0, 6), sticky="w")
+        subrow += 1
+
+        subrow = self._add_entry(request_box, "MCP server script", self.mcp_server_script_var, subrow)
 
         request_buttons = ctk.CTkFrame(request_box, fg_color="transparent")
         request_buttons.grid(row=subrow, column=0, padx=8, pady=(0, 8), sticky="ew")
@@ -382,6 +393,11 @@ class LLMTesterApp(ctk.CTk):
 
         if self.require_json_var.get():
             payload["validation"] = {"require_json": True}
+
+        payload["mcp"] = {
+            "enabled": self.enable_mcp_var.get(),
+            "server_script": self.mcp_server_script_var.get().strip() or None,
+        }
 
         return payload
 

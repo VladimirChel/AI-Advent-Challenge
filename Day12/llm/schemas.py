@@ -15,6 +15,14 @@ class ResponseValidationRules(BaseModel):
     require_json: bool = False
 
 
+class MCPSettings(BaseModel):
+    enabled: bool = False
+    server_script: str | None = None
+    wait_after_start_seconds: float | None = Field(default=None, ge=0, le=30)
+    tool_call_timeout_seconds: float | None = Field(default=None, ge=1, le=300)
+    max_tool_roundtrips: int | None = Field(default=None, ge=1, le=10)
+
+
 class GenerateRequest(BaseModel):
     conversation_id: str | None = None
     branch_id: str = "main"
@@ -29,6 +37,7 @@ class GenerateRequest(BaseModel):
     frequency_penalty: float = 0.0
     validation: ResponseValidationRules | None = None
     show_task_transition_in_chat: bool = True
+    mcp: MCPSettings | None = None
 
 
 class TaskStatePayload(BaseModel):
@@ -85,3 +94,7 @@ class GenerateResponse(BaseModel):
     task_state: TaskStatePayload | None = None
     task_transition: TaskTransitionPayload | None = None
     task_transition_error: TaskTransitionErrorPayload | None = None
+    mcp_used: bool = False
+    mcp_server: str | None = None
+    mcp_tools_offered: int = 0
+    mcp_tool_calls: list[str] = Field(default_factory=list)

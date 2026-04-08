@@ -9,6 +9,7 @@ This project is not just a proxy to a language model. It is an agent-oriented ba
 The service supports:
 
 - generation through an external LLM API;
+- MCP tools through a local `stdio` server;
 - short-term memory from recent messages;
 - working memory tied to a specific task;
 - long-term memory with summaries and extracted facts;
@@ -28,8 +29,9 @@ When a user sends a request to `/generate`, the system:
 4. Restores long-term summary and sticky facts.
 5. Retrieves relevant memory chunks based on the current user input.
 6. Builds the final prompt and sends it to the model.
-7. Runs an invariant compliance check against the draft answer.
-8. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
+7. If MCP is enabled, lets the model call external tools exposed by an MCP server.
+8. Runs an invariant compliance check against the draft answer.
+9. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
 
 This makes the assistant more consistent across long dialogues and better suited for multi-step workflows.
 
@@ -38,6 +40,7 @@ This makes the assistant more consistent across long dialogues and better suited
 - `main.py` - FastAPI application entrypoint, lifecycle, health checks, and model listing.
 - `api/generate.py` - main generation endpoint and post-processing pipeline.
 - `llm/` - request schemas, model client, and output validation.
+- `llm/mcp_client.py` - local MCP client that starts a `stdio` server and bridges its tools into OpenAI tool calling.
 - `memory/` - orchestration of short-term, working, and long-term memory.
 - `invariants/` - loading, prompt injection, and compliance checks for hard project constraints.
 - `repositories/` - persistence layer for messages, facts, summaries, and chunks.
@@ -65,7 +68,11 @@ Example request:
       "content": "Составь краткий план реализации"
     }
   ],
-  "temperature": 0.2
+  "temperature": 0.2,
+  "mcp": {
+    "enabled": true,
+    "server_script": "../Day16/server.py"
+  }
 }
 ```
 
@@ -80,6 +87,9 @@ Example response:
   "model": "gpt-4o-mini",
   "content": "Вот краткий план реализации...",
   "latency_ms": 842,
+  "mcp_used": true,
+  "mcp_tools_offered": 4,
+  "mcp_tool_calls": ["mqtt_status"],
   "short_term_used": true,
   "working_memory_used": true,
   "long_term_used": true,
@@ -120,6 +130,40 @@ Key parameters:
 - `DATABASE_URL` - PostgreSQL connection string;
 - `INVARIANTS_FILE` - path to the JSON file with hard project invariants;
 - `REQUEST_TIMEOUT_SECONDS` - timeout for LLM requests.
+- `MCP_ENABLED_BY_DEFAULT` - enable MCP on every `/generate` request unless overridden.
+- `MCP_SERVER_SCRIPT` - path to the MCP server script. For local testing, use `../Day16/server.py`.
+- `MCP_WAIT_AFTER_START_SECONDS` - optional delay after server start before the first tool call.
+
+## MCP
+
+The backend can expose tools from any local MCP server that speaks `stdio`. For this repository, the intended smoke-test server lives in [../Day16/server.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challenge/Repo/AI%20Advent%20Challenge/Day16/server.py).
+
+When `mcp.enabled=true`, Day12:
+
+- starts the configured server as a subprocess;
+- reads its tool list via MCP;
+- converts MCP tool schemas into OpenAI-compatible function tools;
+- executes tool calls requested by the model and feeds results back into the dialogue.
+
+Example request for manual testing:
+
+```json
+{
+  "conversation_id": "conv-mcp-1",
+  "branch_id": "main",
+  "model": "openai/gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Use available tools and tell me the current MQTT status."
+    }
+  ],
+  "mcp": {
+    "enabled": true,
+    "server_script": "../Day16/server.py"
+  }
+}
+```
 
 ## Invariants
 

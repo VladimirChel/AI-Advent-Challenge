@@ -3,6 +3,13 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from config import (
+    MCP_ENABLED_BY_DEFAULT,
+    MCP_MAX_TOOL_ROUNDTRIPS,
+    MCP_SERVER_SCRIPT,
+    MCP_TOOL_CALL_TIMEOUT_SECONDS,
+    MCP_WAIT_AFTER_START_SECONDS,
+)
 from auth.dependencies import get_current_user
 from auth.schemas import PublicUser
 from invariants.schemas import InvariantCheckResult
@@ -11,8 +18,8 @@ from invariants.service import (
     check_response_against_invariants,
     load_project_invariants,
 )
-from llm.client import call_chat_completion, extract_text_from_chat_completion, get_usage
-from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse
+from llm.client import aggregate_usage, call_chat_completion_with_mcp, extract_text_from_chat_completion
+from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPSettings
 from llm.service import validate_output
 from memory.models import MemoryPolicy
 from memory.orchestrator import build_agent_context, materialize_context_messages
@@ -24,6 +31,43 @@ from repositories.summaries import build_summary_from_messages, upsert_conversat
 from tasks.workflow_service import build_task_transition_chat_note, maybe_update_task_memory
 
 router = APIRouter()
+
+
+def resolve_mcp_settings(payload: GenerateRequest) -> MCPSettings | None:
+    if payload.mcp is not None:
+        if not payload.mcp.enabled:
+            return payload.mcp
+        return payload.mcp.model_copy(
+            update={
+                "server_script": payload.mcp.server_script or str(MCP_SERVER_SCRIPT),
+                "wait_after_start_seconds": (
+                    payload.mcp.wait_after_start_seconds
+                    if payload.mcp.wait_after_start_seconds is not None
+                    else MCP_WAIT_AFTER_START_SECONDS
+                ),
+                "tool_call_timeout_seconds": (
+                    payload.mcp.tool_call_timeout_seconds
+                    if payload.mcp.tool_call_timeout_seconds is not None
+                    else MCP_TOOL_CALL_TIMEOUT_SECONDS
+                ),
+                "max_tool_roundtrips": (
+                    payload.mcp.max_tool_roundtrips
+                    if payload.mcp.max_tool_roundtrips is not None
+                    else MCP_MAX_TOOL_ROUNDTRIPS
+                ),
+            }
+        )
+
+    if not MCP_ENABLED_BY_DEFAULT:
+        return None
+
+    return MCPSettings(
+        enabled=True,
+        server_script=str(MCP_SERVER_SCRIPT),
+        wait_after_start_seconds=MCP_WAIT_AFTER_START_SECONDS,
+        tool_call_timeout_seconds=MCP_TOOL_CALL_TIMEOUT_SECONDS,
+        max_tool_roundtrips=MCP_MAX_TOOL_ROUNDTRIPS,
+    )
 
 
 @router.post("/generate", response_model=GenerateResponse)
@@ -48,8 +92,9 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     )
 
     full_messages = [*materialize_context_messages(agent_ctx), *payload.messages]
+    mcp_settings = resolve_mcp_settings(payload)
 
-    response = call_chat_completion(
+    response, mcp_execution = call_chat_completion_with_mcp(
         model=payload.model,
         messages=full_messages,
         temperature=payload.temperature,
@@ -58,6 +103,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         presence_penalty=payload.presence_penalty,
         frequency_penalty=payload.frequency_penalty,
         user_id=user_id,
+        mcp_settings=mcp_settings,
     )
 
     content, finish_reason = extract_text_from_chat_completion(response)
@@ -94,7 +140,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         content = f"{content.rstrip()}\n\n{task_note}"
 
     validate_output(content, payload.validation)
-    usage = get_usage(response)
+    usage = aggregate_usage(mcp_execution.responses)
 
     exchange_messages = [*payload.messages, ChatMessage(role="assistant", content=content)]
     save_messages(
@@ -151,4 +197,8 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         task_state=task_update["task_state"],
         task_transition=task_update["task_transition"],
         task_transition_error=task_update["task_transition_error"],
+        mcp_used=mcp_execution.used,
+        mcp_server=mcp_execution.server_script,
+        mcp_tools_offered=mcp_execution.tools_offered,
+        mcp_tool_calls=mcp_execution.tool_calls,
     )

@@ -18,6 +18,16 @@ REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "60"))
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "openai/gpt-4o-mini").strip()
 AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "").strip() or PROXYAPI_API_KEY
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "86400"))
+MCP_ENABLED_BY_DEFAULT = os.getenv("MCP_ENABLED_BY_DEFAULT", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+MCP_SERVER_SCRIPT = Path(os.getenv("MCP_SERVER_SCRIPT", "../Day16/server.py")).resolve()
+MCP_WAIT_AFTER_START_SECONDS = float(os.getenv("MCP_WAIT_AFTER_START_SECONDS", "0"))
+MCP_MAX_TOOL_ROUNDTRIPS = int(os.getenv("MCP_MAX_TOOL_ROUNDTRIPS", "4"))
+MCP_TOOL_CALL_TIMEOUT_SECONDS = float(os.getenv("MCP_TOOL_CALL_TIMEOUT_SECONDS", "20"))
 
 LOG_DIR = Path(os.getenv("LOG_DIR", "logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
