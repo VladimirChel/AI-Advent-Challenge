@@ -29,10 +29,32 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "readings": {"type": "array"},
+                "readings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sensor_id": {"type": "string"},
+                            "topic": {"type": "string"},
+                            "alias": {"type": "string"},
+                            "value": {"type": ["number", "string"]},
+                            "unit": {"type": "string"},
+                            "updated_at": {"type": "string"},
+                            "timestamp": {"type": "string"},
+                        },
+                        "additionalProperties": True,
+                    },
+                },
                 "title": {"type": "string"},
-                "mode": {"type": "string"},
-                "thresholds": {"type": "object"},
+                "mode": {"type": "string", "enum": ["brief", "compact"]},
+                "thresholds": {
+                    "type": "object",
+                    "properties": {
+                        "min_value": {"type": ["number", "string"]},
+                        "max_value": {"type": ["number", "string"]},
+                    },
+                    "additionalProperties": True,
+                },
             },
             "required": ["readings"],
             "additionalProperties": False,

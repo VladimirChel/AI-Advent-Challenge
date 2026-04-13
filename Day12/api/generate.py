@@ -7,6 +7,7 @@ from config import (
     MCP_ENABLED_BY_DEFAULT,
     MCP_MAX_TOOL_ROUNDTRIPS,
     MCP_SERVER_SCRIPT,
+    MCP_SERVER_SCRIPTS,
     MCP_TOOL_CALL_TIMEOUT_SECONDS,
     MCP_WAIT_AFTER_START_SECONDS,
 )
@@ -19,7 +20,7 @@ from invariants.service import (
     load_project_invariants,
 )
 from llm.client import aggregate_usage, call_chat_completion_with_mcp, extract_text_from_chat_completion
-from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPSettings
+from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServerConfig, MCPSettings
 from llm.service import validate_output
 from memory.models import MemoryPolicy
 from memory.orchestrator import build_agent_context, materialize_context_messages
@@ -37,6 +38,20 @@ def resolve_mcp_settings(payload: GenerateRequest) -> MCPSettings | None:
     if payload.mcp is not None:
         if not payload.mcp.enabled:
             return payload.mcp
+
+        payload_servers = _normalize_payload_mcp_servers(payload.mcp)
+        if payload_servers:
+            return payload.mcp.model_copy(
+                update={
+                    "servers": payload_servers,
+                    "max_tool_roundtrips": (
+                        payload.mcp.max_tool_roundtrips
+                        if payload.mcp.max_tool_roundtrips is not None
+                        else MCP_MAX_TOOL_ROUNDTRIPS
+                    ),
+                }
+            )
+
         return payload.mcp.model_copy(
             update={
                 "server_script": payload.mcp.server_script or str(MCP_SERVER_SCRIPT),
@@ -61,6 +76,14 @@ def resolve_mcp_settings(payload: GenerateRequest) -> MCPSettings | None:
     if not MCP_ENABLED_BY_DEFAULT:
         return None
 
+    default_servers = _build_default_mcp_servers()
+    if default_servers:
+        return MCPSettings(
+            enabled=True,
+            servers=default_servers,
+            max_tool_roundtrips=MCP_MAX_TOOL_ROUNDTRIPS,
+        )
+
     return MCPSettings(
         enabled=True,
         server_script=str(MCP_SERVER_SCRIPT),
@@ -68,6 +91,50 @@ def resolve_mcp_settings(payload: GenerateRequest) -> MCPSettings | None:
         tool_call_timeout_seconds=MCP_TOOL_CALL_TIMEOUT_SECONDS,
         max_tool_roundtrips=MCP_MAX_TOOL_ROUNDTRIPS,
     )
+
+
+def _normalize_payload_mcp_servers(settings: MCPSettings) -> list[MCPServerConfig]:
+    result: list[MCPServerConfig] = []
+    for index, server in enumerate(settings.servers, start=1):
+        if not server.enabled or not server.server_script:
+            continue
+        result.append(
+            server.model_copy(
+                update={
+                    "id": server.id or f"server_{index}",
+                    "wait_after_start_seconds": (
+                        server.wait_after_start_seconds
+                        if server.wait_after_start_seconds is not None
+                        else settings.wait_after_start_seconds
+                        if settings.wait_after_start_seconds is not None
+                        else MCP_WAIT_AFTER_START_SECONDS
+                    ),
+                    "tool_call_timeout_seconds": (
+                        server.tool_call_timeout_seconds
+                        if server.tool_call_timeout_seconds is not None
+                        else settings.tool_call_timeout_seconds
+                        if settings.tool_call_timeout_seconds is not None
+                        else MCP_TOOL_CALL_TIMEOUT_SECONDS
+                    ),
+                }
+            )
+        )
+    return result
+
+
+def _build_default_mcp_servers() -> list[MCPServerConfig]:
+    scripts = MCP_SERVER_SCRIPTS or [MCP_SERVER_SCRIPT]
+    result: list[MCPServerConfig] = []
+    for index, script in enumerate(scripts, start=1):
+        result.append(
+            MCPServerConfig(
+                id=f"server_{index}",
+                server_script=str(script),
+                wait_after_start_seconds=MCP_WAIT_AFTER_START_SECONDS,
+                tool_call_timeout_seconds=MCP_TOOL_CALL_TIMEOUT_SECONDS,
+            )
+        )
+    return result
 
 
 @router.post("/generate", response_model=GenerateResponse)
@@ -199,6 +266,9 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         task_transition_error=task_update["task_transition_error"],
         mcp_used=mcp_execution.used,
         mcp_server=mcp_execution.server_script,
+        mcp_servers=mcp_execution.servers,
         mcp_tools_offered=mcp_execution.tools_offered,
+        mcp_available_tools=mcp_execution.available_tools,
         mcp_tool_calls=mcp_execution.tool_calls,
+        mcp_tool_trace=mcp_execution.tool_trace,
     )

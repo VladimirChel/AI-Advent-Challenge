@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -25,6 +26,22 @@ MCP_ENABLED_BY_DEFAULT = os.getenv("MCP_ENABLED_BY_DEFAULT", "false").strip().lo
     "on",
 }
 MCP_SERVER_SCRIPT = Path(os.getenv("MCP_SERVER_SCRIPT", "../Day16/server.py")).resolve()
+_mcp_server_scripts_raw = os.getenv("MCP_SERVER_SCRIPTS", "").strip()
+if _mcp_server_scripts_raw:
+    try:
+        MCP_SERVER_SCRIPTS = [
+            Path(item).resolve()
+            for item in json.loads(_mcp_server_scripts_raw)
+            if isinstance(item, str) and item.strip()
+        ]
+    except json.JSONDecodeError:
+        MCP_SERVER_SCRIPTS = [
+            Path(item.strip()).resolve()
+            for item in _mcp_server_scripts_raw.split(";")
+            if item.strip()
+        ]
+else:
+    MCP_SERVER_SCRIPTS = []
 MCP_WAIT_AFTER_START_SECONDS = float(os.getenv("MCP_WAIT_AFTER_START_SECONDS", "0"))
 MCP_MAX_TOOL_ROUNDTRIPS = int(os.getenv("MCP_MAX_TOOL_ROUNDTRIPS", "4"))
 MCP_TOOL_CALL_TIMEOUT_SECONDS = float(os.getenv("MCP_TOOL_CALL_TIMEOUT_SECONDS", "20"))

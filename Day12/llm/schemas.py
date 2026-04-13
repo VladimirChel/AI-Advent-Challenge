@@ -15,9 +15,18 @@ class ResponseValidationRules(BaseModel):
     require_json: bool = False
 
 
+class MCPServerConfig(BaseModel):
+    id: str | None = Field(default=None, min_length=1, max_length=100)
+    enabled: bool = True
+    server_script: str
+    wait_after_start_seconds: float | None = Field(default=None, ge=0, le=30)
+    tool_call_timeout_seconds: float | None = Field(default=None, ge=1, le=300)
+
+
 class MCPSettings(BaseModel):
     enabled: bool = False
     server_script: str | None = None
+    servers: list[MCPServerConfig] = Field(default_factory=list)
     wait_after_start_seconds: float | None = Field(default=None, ge=0, le=30)
     tool_call_timeout_seconds: float | None = Field(default=None, ge=1, le=300)
     max_tool_roundtrips: int | None = Field(default=None, ge=1, le=10)
@@ -96,5 +105,8 @@ class GenerateResponse(BaseModel):
     task_transition_error: TaskTransitionErrorPayload | None = None
     mcp_used: bool = False
     mcp_server: str | None = None
+    mcp_servers: list[str] = Field(default_factory=list)
     mcp_tools_offered: int = 0
+    mcp_available_tools: list[dict[str, Any]] = Field(default_factory=list)
     mcp_tool_calls: list[str] = Field(default_factory=list)
+    mcp_tool_trace: list[dict[str, Any]] = Field(default_factory=list)

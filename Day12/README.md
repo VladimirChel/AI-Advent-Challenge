@@ -9,7 +9,7 @@ This project is not just a proxy to a language model. It is an agent-oriented ba
 The service supports:
 
 - generation through an external LLM API;
-- MCP tools through a local `stdio` server;
+- MCP tools through one or more local `stdio` servers;
 - short-term memory from recent messages;
 - working memory tied to a specific task;
 - long-term memory with summaries and extracted facts;
@@ -29,7 +29,7 @@ When a user sends a request to `/generate`, the system:
 4. Restores long-term summary and sticky facts.
 5. Retrieves relevant memory chunks based on the current user input.
 6. Builds the final prompt and sends it to the model.
-7. If MCP is enabled, lets the model call external tools exposed by an MCP server.
+7. If MCP is enabled, discovers tools from one or more MCP servers and lets the model call them in a chain.
 8. Runs an invariant compliance check against the draft answer.
 9. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
 
@@ -71,7 +71,12 @@ Example request:
   "temperature": 0.2,
   "mcp": {
     "enabled": true,
-    "server_script": "../Day16/server.py"
+    "servers": [
+      {
+        "id": "ops",
+        "server_script": "../Day16/server.py"
+      }
+    ]
   }
 }
 ```
@@ -88,8 +93,9 @@ Example response:
   "content": "Вот краткий план реализации...",
   "latency_ms": 842,
   "mcp_used": true,
+  "mcp_servers": ["../Day16/server.py"],
   "mcp_tools_offered": 4,
-  "mcp_tool_calls": ["mqtt_status"],
+  "mcp_tool_calls": ["ops.mqtt_status"],
   "short_term_used": true,
   "working_memory_used": true,
   "long_term_used": true,
@@ -131,19 +137,21 @@ Key parameters:
 - `INVARIANTS_FILE` - path to the JSON file with hard project invariants;
 - `REQUEST_TIMEOUT_SECONDS` - timeout for LLM requests.
 - `MCP_ENABLED_BY_DEFAULT` - enable MCP on every `/generate` request unless overridden.
-- `MCP_SERVER_SCRIPT` - path to the MCP server script. For local testing, use `../Day16/server.py`.
+- `MCP_SERVER_SCRIPT` - single default MCP server script kept for backward compatibility.
+- `MCP_SERVER_SCRIPTS` - optional list of default MCP server scripts. Supports JSON array or `;`-separated paths.
 - `MCP_WAIT_AFTER_START_SECONDS` - optional delay after server start before the first tool call.
 
 ## MCP
 
-The backend can expose tools from any local MCP server that speaks `stdio`. For this repository, the intended smoke-test server lives in [../Day16/server.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challenge/Repo/AI%20Advent%20Challenge/Day16/server.py).
+The backend can expose tools from one or more local MCP servers that speak `stdio`. For this repository, the intended smoke-test server lives in [../Day16/server.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challenge/Repo/AI%20Advent%20Challenge/Day16/server.py).
 
 When `mcp.enabled=true`, Day12:
 
-- starts the configured server as a subprocess;
-- reads its tool list via MCP;
-- converts MCP tool schemas into OpenAI-compatible function tools;
-- executes tool calls requested by the model and feeds results back into the dialogue.
+- starts each configured server as a subprocess;
+- reads tool lists via MCP;
+- namespaces tool names as `server_id__tool_name` to avoid collisions;
+- converts all discovered tools into OpenAI-compatible function tools;
+- lets the model chain tool calls across different MCP servers before returning final text.
 
 Example request for manual testing:
 
@@ -155,12 +163,21 @@ Example request for manual testing:
   "messages": [
     {
       "role": "user",
-      "content": "Use available tools and tell me the current MQTT status."
+      "content": "Use available tools, gather data from the connected MCP servers, and summarize the result."
     }
   ],
   "mcp": {
     "enabled": true,
-    "server_script": "../Day16/server.py"
+    "servers": [
+      {
+        "id": "ops",
+        "server_script": "../Day16/server.py"
+      },
+      {
+        "id": "aux",
+        "server_script": "../AnotherServer/server.py"
+      }
+    ]
   }
 }
 ```
