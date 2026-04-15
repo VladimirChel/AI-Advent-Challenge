@@ -142,6 +142,19 @@ def estimate_tokens(text: str) -> int:
     return max(1, math.ceil(len(text.split()) * 1.3))
 
 
+def build_embedding_input(chunk: Chunk) -> str:
+    source_name = Path(chunk.source).name
+    return "\n".join(
+        [
+            f"Title: {chunk.title}",
+            f"Section: {chunk.section}",
+            f"Source: {source_name}",
+            "Content:",
+            chunk.text,
+        ]
+    )
+
+
 def chunk_by_fixed_size(document: Document, chunk_size_words: int, overlap_words: int) -> list[Chunk]:
     words = document.text.split()
     if not words:
@@ -398,7 +411,11 @@ def build_index(chunks: list[Chunk], ollama_url: str, model: str) -> dict:
     embedding_dimension = None
 
     for chunk in chunks:
-        vector = call_ollama_embed(ollama_url=ollama_url, model=model, text=chunk.text)
+        vector = call_ollama_embed(
+            ollama_url=ollama_url,
+            model=model,
+            text=build_embedding_input(chunk),
+        )
         embedding_dimension = embedding_dimension or len(vector)
         items.append(
             {
@@ -461,7 +478,11 @@ def build_index_for_documents(
             while pending_chunks:
                 current_chunk = pending_chunks.pop(0)
                 try:
-                    vector = call_ollama_embed(ollama_url=ollama_url, model=model, text=current_chunk.text)
+                    vector = call_ollama_embed(
+                        ollama_url=ollama_url,
+                        model=model,
+                        text=build_embedding_input(current_chunk),
+                    )
                     embedding_dimension = embedding_dimension or len(vector)
                     items.append(
                         {

@@ -13,6 +13,7 @@ This project builds a local document index with:
 - Structure-aware chunking by markdown headings or text paragraph blocks
 - Automatic splitting of oversized chunks before embedding
 - Chunk metadata: `source`, `title`, `section`, `chunk_id`
+- Embeddings are built from chunk text plus metadata (`title`, `section`, filename)
 - Local JSON indexes with embeddings
 - FAISS indexes for fast vector search
 - Auto-generated comparison in JSON and Markdown
@@ -20,6 +21,7 @@ This project builds a local document index with:
 ## Project structure
 
 - `index_documents.py` - main CLI script
+- `index_strategy.py` - separate CLI script for indexing only one strategy
 - `documents/` - sample source documents
 - `output/` - generated indexes and comparison report after a run
 
@@ -58,6 +60,18 @@ If Ollama is not running yet, you can still compare chunking strategies without 
 
 ```powershell
 python .\index_documents.py --docs-dir documents --output-dir output --chunks-only
+```
+
+If you want to build only one strategy, use the separate app:
+
+```powershell
+python .\index_strategy.py --strategy fixed --docs-dir documents --output-dir output --model bge-m3 --max-embed-words 250
+```
+
+Or for structure-aware chunks:
+
+```powershell
+python .\index_strategy.py --strategy structure --docs-dir documents --output-dir output --model bge-m3 --max-embed-words 250
 ```
 
 ## Result files

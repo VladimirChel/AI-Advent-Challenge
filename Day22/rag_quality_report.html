@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAG Quality Report</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --card: #fffdf8;
+      --ink: #20201c;
+      --muted: #6c685f;
+      --line: #d9d0c1;
+      --accent: #114b5f;
+      --good: #2f6f4f;
+      --bad: #9f3a2f;
+      --neutral: #8a6d3b;
+      --soft: #efe6d8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(17,75,95,0.10), transparent 28%),
+        linear-gradient(180deg, #f7f2e7 0%, #f2ebdc 100%);
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 20px 56px; }
+    .hero, .question-card {
+      background: rgba(255,253,248,0.92);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(44, 36, 17, 0.08);
+    }
+    .hero { padding: 28px; margin-bottom: 24px; }
+    h1, h2, h3 { margin: 0 0 12px; line-height: 1.15; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.4rem; }
+    h3 { font-size: 1.05rem; }
+    p { margin: 0; line-height: 1.5; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .summary article {
+      background: var(--soft);
+      border-radius: 14px;
+      padding: 14px 16px;
+      border: 1px solid rgba(17,75,95,0.10);
+    }
+    .summary .value {
+      display: block;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 22px;
+      background: var(--card);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+    th {
+      background: #f0e7d7;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: white;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .badge.good { background: var(--good); }
+    .badge.bad { background: var(--bad); }
+    .badge.neutral { background: var(--neutral); }
+    .question-card { padding: 22px; margin-top: 22px; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .meta-grid > div {
+      background: var(--soft);
+      border: 1px solid rgba(17,75,95,0.10);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .answer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .answer-grid article {
+      background: #fcfaf5;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .chunk-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .chunk {
+      background: #fcfaf5;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .chunk-meta {
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-bottom: 6px;
+    }
+    .chunk-text {
+      margin-top: 8px;
+      line-height: 1.45;
+      color: #312b24;
+      font-size: 0.94rem;
+    }
+    .muted { color: var(--muted); }
+    @media (max-width: 700px) {
+      .wrap { padding: 20px 14px 36px; }
+      h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Сравнение агента в двух режимах: с RAG и без RAG</h1>
+      <p>Отчет собран автоматически по 10 контрольным вопросам из базы документов Day21. Для каждого вопроса зафиксированы ожидания, обязательные источники, ответы обеих стратегий и найденные чанки retrieval.</p>
+      <div class="summary">
+        <article><span class="label">Среднее качество без RAG</span><span class="value">30%</span></article>
+        <article><span class="label">Среднее качество с RAG</span><span class="value">80%</span></article>
+        <article><span class="label">Средний прирост</span><span class="value">+50%</span></article>
+        <article><span class="label">Попадание в ожидаемые источники</span><span class="value">100%</span></article>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Вопрос</th>
+            <th>Без RAG</th>
+            <th>С RAG</th>
+            <th>Дельта</th>
+            <th>Источники</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Q1</td><td>Как включить сервисный режима контроллера Sigur?</td><td>0%</td><td>100%</td><td><span class='badge good'>+100%</span></td><td>1/1</td></tr><tr><td>Q2</td><td>Какой максимальный ток потребления считывателей, подключаемых к контроллеру Sigur E300H?</td><td>0%</td><td>100%</td><td><span class='badge good'>+100%</span></td><td>1/1</td></tr><tr><td>Q3</td><td>Как отключить автоматическое добавление принтеров в Windows 10 через GPMC?</td><td>50%</td><td>50%</td><td><span class='badge neutral'>+0%</span></td><td>1/1</td></tr><tr><td>Q4</td><td>Какой файл необходимо отредактировать для изменения параметров сертификатов в OpenVPN?</td><td>50%</td><td>100%</td><td><span class='badge good'>+50%</span></td><td>1/1</td></tr><tr><td>Q5</td><td>Какой командой в OpenVPN можно удалить все ключи при новой установке?</td><td>50%</td><td>100%</td><td><span class='badge good'>+50%</span></td><td>1/1</td></tr><tr><td>Q6</td><td>Какой путь необходимо использовать для настройки сетевых скриптов в CentOS?</td><td>100%</td><td>100%</td><td><span class='badge neutral'>+0%</span></td><td>1/1</td></tr><tr><td>Q7</td><td>Какой шаг необходимо выполнить для перезапуска сети в CentOS после изменения настроек?</td><td>0%</td><td>50%</td><td><span class='badge good'>+50%</span></td><td>1/1</td></tr><tr><td>Q8</td><td>Какой максимальный ток, снимаемый с клемм X7 контроллера Ворота, не должен превышать?</td><td>0%</td><td>50%</td><td><span class='badge good'>+50%</span></td><td>1/1</td></tr><tr><td>Q9</td><td>Какой шаг необходимо выполнить для смены логики работы концевых выключателей на контроллере Ворота?</td><td>0%</td><td>50%</td><td><span class='badge good'>+50%</span></td><td>1/1</td></tr><tr><td>Q10</td><td>Какой интерфейс поддерживают считыватели, подключаемые к контроллеру Sigur E300H?</td><td>50%</td><td>100%</td><td><span class='badge good'>+50%</span></td><td>1/1</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" style="margin-top: 16px;">Индекс: D:\Yandex.Disk\Docs\AI\AI Advent Challenge\Repo\AI Advent Challenge\Day21\output\structure.faiss<br>Отчет: rag_quality_report.html</p>
+    </section>
+    <section class='question-card'><h2>Q1. Как включить сервисный режима контроллера Sigur?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>В файл tcgui.cfg добавить строку DevelMode=1 должна быть добавлена после строки ServerList.0.IP=192.168.13.20.</p></div><div><span class='label'>Ожидаемые источники</span><p>Sigur сервисный режим контролера.txt</p></div><div><span class='label'>Качество без RAG</span><p>0% (0/2)</p></div><div><span class='label'>Качество с RAG</span><p>100% (2/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+100%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>Sigur сервисный режим контролера.txt</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>К сожалению, у меня нет подтвержденной информации о том, как включить сервисный режим контроллера Sigur. Рекомендую обратиться к официальной документации или поддержке производителя для получения точных инструкций.</pre></article><article><h3>С RAG</h3><pre>Чтобы включить сервисный режим контроллера Sigur, выполните следующие шаги:
+
+1. Откройте файл `C:\Users\voronkov.WS-042\.tcgui.cfg`.
+2. Добавьте строку `DevelMode=1` после строки `ServerList.0.IP=192.168.13.20`.
+3. Сохраните изменения.
+4. В программе Sigur клиент перейдите в меню разработчика (нажмите Alt+D). 
+
+Эти шаги позволят вам активировать сервисный режим.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=2.2600</div><div><strong>Sigur сервисный режим контролера.txt</strong> | Paragraph block 1</div><div class='chunk-text'>в файле C:\Users\voronkov.WS-042\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20 сохраняем в программе sigur клиент фаил =&gt; меню разработчика(alt+D)</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=0.8413</div><div><strong>Ворота контроллер.pdf</strong> | Page 8</div><div class='chunk-text'>Компания DoorHan благодарит вас за приобретение нашей продукции. Мы надеемся, что вы останетесь довольны качеством данного изделия. По вопросам приобретения, дистрибьюции и технического обслуживания обращайтесь в офисы региональных представителей или центральный офис компании по адресу: Россия, 143002, Московская обл.,...</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.7865</div><div><strong>Sigur_E300H.pdf</strong> | Page 7</div><div class='chunk-text'>Контроллер СКУД Sigur E300H 4. Комплект поставки контроллера. Таблица 1. Комплект поставки контроллера Sigur E300H. Номер Позиция Количество 1 Контроллер в корпусе 1 шт. 2 Компакт диск с данной инструкцией в электронном виде 1 шт. 3 Гарантийный талон с отметкой о дате продажи 1 шт. 4 Диод 1N4007 3 шт. стр. 6</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.7601</div><div><strong>Sigur_E510.pdf</strong> | Page 26</div><div class='chunk-text'>Контроллер Sigur E510. Описание и инструкция по эксплуатации. Стр.26 из 131 К контроллеру подключаются два или четыре считывателя и опционально два или четыре датчика прохода. Рис. 11. Вариант подключения в конфигурации «Два терминала учёта рабочего времени». Считыватели подключаются к клеммам контроллера согласно разд...</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.7521</div><div><strong>Sigur_E510.pdf</strong> | Page 96</div><div class='chunk-text'>Контроллер Sigur E510. Описание и инструкция по эксплуатации. Стр.96 из 131 • • • • • • • • • • • Выключить «Сигнализировать о запрете доступа», «Сигнализировать другие ситуации» и «Инвертировать результирующий сигнал». В секции «Управление индикацией считывателей» LED2: Включить «Сигнализировать о разрешении доступа —...</div></article></div></section><section class='question-card'><h2>Q2. Какой максимальный ток потребления считывателей, подключаемых к контроллеру Sigur E300H?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Суммарный ток потребления считывателей не должен превышать 200 мА.</p></div><div><span class='label'>Ожидаемые источники</span><p>Sigur_E300H.pdf</p></div><div><span class='label'>Качество без RAG</span><p>0% (0/2)</p></div><div><span class='label'>Качество с RAG</span><p>100% (2/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+100%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>Sigur_E300H.pdf</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>К сожалению, у меня нет подтвержденной информации о максимальном токе потребления считывателей, подключаемых к контроллеру Sigur E300H. Рекомендую обратиться к официальной документации или поддержке производителя для получения точных данных.</pre></article><article><h3>С RAG</h3><pre>Максимальный ток потребления считывателей, подключаемых к контроллеру Sigur E300H, не должен превышать 200 мА. При превышении этого тока сработает встроенная защита контроллера и отключит питание считывателей. Если считыватели потребляют ток больше 200 мА, их питание необходимо подключать непосредственно к клеммам блока питания.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=1.4800</div><div><strong>Sigur сервисный режим контролера.txt</strong> | Paragraph block 1</div><div class='chunk-text'>в файле C:\Users\voronkov.WS-042\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20 сохраняем в программе sigur клиент фаил =&gt; меню разработчика(alt+D)</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=0.8675</div><div><strong>Sigur_E300H.pdf</strong> | Page 24</div><div class='chunk-text'>Контроллер СКУД Sigur E300H 9.5 Подключение кнопки выхода. Кнопка выхода предназначена для отпирания замка двери при выходе. Кнопка должна быть нормально–разомкнутой и подключаться к клеммам контроллера, как показано на рисунке ниже. Рисунок 13. Подключение кнопки выхода. стр. 23 RTE GND Клеммы контроллераSA1 PORT1</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.8674</div><div><strong>Sigur_E300H.pdf</strong> | Page 13</div><div class='chunk-text'>Контроллер СКУД Sigur E300H Рисунок 2. Подключение оборудования к контроллеру. Примечание: п одключение к контроллеру линий управления электропитанием осуществляется только через внешние реле или магнитные пускатели. Таблица 4. Установка DIP-переключателя CONFIG. Не используются Тип замка Не используются Интерфейс счит...</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.8643</div><div><strong>Sigur_E300H.pdf</strong> | Page 15</div><div class='chunk-text'>Контроллер СКУД Sigur E300H 8. Подключение считывателей и контакторов TM, общие сведения. К контроллеру может быть подключено до двух считывателей, поддерживающих выходной интерфейс Wiegand-26, Wiegand-34 или Touch memory. Считыватели подключаются к клеммам «+12», «GND», «D0», «D1» и «LED» клеммных блоков PORT1 и PORT2...</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.8560</div><div><strong>Sigur_E300H.pdf</strong> | Page 18</div><div class='chunk-text'>Контроллер СКУД Sigur E300H Рисунок 8. Пример подключения контактора Touch memory со встроенным светодиодом 2. Рисунок 9. Пример подключения считывателя с выходным интерфейсом Touch memory. 8.4 Подключение считывателей с кодонаборной панелью. Для подключения к контроллеру считывателя с кодонаборной панелью необходимо,...</div></article></div></section><section class='question-card'><h2>Q3. Как отключить автоматическое добавление принтеров в Windows 10 через GPMC?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Необходимо перейти в Computer Configuration -&gt; Policies -&gt; Administrative Templates -&gt; Printers и выбрать &quot;Disabled&quot; для &quot;Add Printer wizard - Network scan page (Managed network)&quot;.</p></div><div><span class='label'>Ожидаемые источники</span><p>отключить автоматич добавление принтеров вин10.txt</p></div><div><span class='label'>Качество без RAG</span><p>50% (1/2)</p></div><div><span class='label'>Качество с RAG</span><p>50% (1/2)</p></div><div><span class='label'>Разница</span><p><span class='badge neutral'>+0%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>отключить автоматич добавление принтеров вин10.txt</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Чтобы отключить автоматическое добавление принтеров в Windows 10 через GPMC, выполните следующие шаги:
+
+1. Откройте Group Policy Management Console (GPMC).
+2. Найдите нужную групповую политику или создайте новую.
+3. Перейдите в раздел: `Конфигурация компьютера -&gt; Политики -&gt; Административные шаблоны -&gt; Принтеры`.
+4. Найдите параметр &quot;Запретить автоматическое добавление принтеров&quot;.
+5. Установите его в &quot;Включено&quot;.
+
+Сохраните изменения и примените политику.</pre></article><article><h3>С RAG</h3><pre>Чтобы отключить автоматическое добавление принтеров в Windows 10 через GPMC, выполните следующие шаги:
+
+1. Откройте Group Policy Management Console (GPMC).
+2. Перейдите в раздел: `Конфигурация компьютера -&gt; Политики -&gt; Административные шаблоны -&gt; Принтеры`.
+3. Найдите параметр &quot;Мастер добавления принтера - страница сетевого сканирования (Управляемая сеть)&quot;.
+4. Установите его в &quot;Отключено&quot;.
+5. Нажмите &quot;ОК&quot; и закройте окно редактирования GPMC.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=1.1200</div><div><strong>отключить автоматич добавление принтеров вин10.txt</strong> | Paragraph block 2</div><div class='chunk-text'>GPMC -&gt; Computer Configuration -&gt; Policies -&gt; Administrative Templates -&gt; Printers Edit: &quot;Add Printer wizard - Network scan page (Managed network)&quot; Select &quot;Disabled&quot; Click &quot;OK&quot; Close GPMC edit window</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=1.1000</div><div><strong>отключить автоматич добавление принтеров вин10.txt</strong> | Paragraph block 7</div><div class='chunk-text'>[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private] &quot;AutoSetup&quot;=dword:00000000</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=1.0700</div><div><strong>отключить автоматич добавление принтеров вин10.txt</strong> | Paragraph block 1</div><div class='chunk-text'>To disable the network scan screen entirely when on corporate network:</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=1.0700</div><div><strong>отключить автоматич добавление принтеров вин10.txt</strong> | Paragraph block 3</div><div class='chunk-text'>или так</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=1.0700</div><div><strong>отключить автоматич добавление принтеров вин10.txt</strong> | Paragraph block 4</div><div class='chunk-text'>Цитата: Control Panel (icon view)&gt; Network and Sharing Center &gt; Change advanced sharing settings (on left side of screen)</div></article></div></section><section class='question-card'><h2>Q4. Какой файл необходимо отредактировать для изменения параметров сертификатов в OpenVPN?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Файл C:\Program Files\OpenVPN\easy-rsa\openssl-1.0.0.cnf должен быть отредактирован.</p></div><div><span class='label'>Ожидаемые источники</span><p>команды OpenVPN.txt</p></div><div><span class='label'>Качество без RAG</span><p>50% (1/2)</p></div><div><span class='label'>Качество с RAG</span><p>100% (2/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+50%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>команды OpenVPN.txt</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Для изменения параметров сертификатов в OpenVPN необходимо отредактировать файл `server.conf` (или `client.conf`, в зависимости от конфигурации).</pre></article><article><h3>С RAG</h3><pre>Для изменения параметров сертификатов в OpenVPN необходимо отредактировать файл `C:\Program Files\OpenVPN\easy-rsa\openssl-1.0.0.cnf`. В этом файле можно изменить параметры, такие как `default_days` и `default_crl_days`.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=0.7200</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 21</div><div class='chunk-text'>На компьютере пользователя в офисе (настраиваем сервер): 1. Устанавливаем OpenVPN 2. Копируем конфиг server.ovpn в c:\Program Files\OpenVPN\config\ 3. В службах ставим автоматическую загрузку и запускаем OpenVPNService 4. Добавляем в брандмауэр Панель управления\Система и безопасность\Брандмауэр Защитника Windows\Разре...</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=0.7200</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 2</div><div class='chunk-text'>Только при новой установке !!! отредактировать C:\Program Files\OpenVPN\easy-rsa\openssl-1.0.0.cnf изменить: default_days = 3650 # how long to certify for default_crl_days= 3650 # how long before next CRL</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.7200</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 3</div><div class='chunk-text'>Отредактировать и запустить vars.bat</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.7200</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 6</div><div class='chunk-text'>Создаём список отзыва сертификатов клиентов: build-key revokecrt revoke-full revokecrt ___________________________________________________________________________________________________________</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.7200</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 9</div><div class='chunk-text'>Генерация сертификатов и ключей клиентов build-key user1</div></article></div></section><section class='question-card'><h2>Q5. Какой командой в OpenVPN можно удалить все ключи при новой установке?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Команда clean-all используется для удаления всех ключей.</p></div><div><span class='label'>Ожидаемые источники</span><p>команды OpenVPN.txt</p></div><div><span class='label'>Качество без RAG</span><p>50% (1/2)</p></div><div><span class='label'>Качество с RAG</span><p>100% (2/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+50%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>команды OpenVPN.txt</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Для удаления всех ключей в OpenVPN при новой установке можно использовать команду `clean-all`.</pre></article><article><h3>С RAG</h3><pre>Командой в OpenVPN, которая удаляет все ключи при новой установке, является `clean-all`.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=1.0300</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 4</div><div class='chunk-text'>clean-all - команда удаляет все ключи, используем только при новой установке</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=0.9700</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 2</div><div class='chunk-text'>Только при новой установке !!! отредактировать C:\Program Files\OpenVPN\easy-rsa\openssl-1.0.0.cnf изменить: default_days = 3650 # how long to certify for default_crl_days= 3650 # how long before next CRL</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.9700</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 20</div><div class='chunk-text'>Генерируем ключ (можно на своём компе) c:\Program Files\OpenVPN\bin&gt;openvpn --genkey --secret static.key 1. Копируем текст ключа в конфиг клиента и сервера. 2. Меняем порт 3. Резервируем ip-адрес в DHCP. 4. Добавляем проброс порта в NAT.</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.9400</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 22</div><div class='chunk-text'>На удалённом компьютере пользователя (настраиваем клиент): 1. Устанавливаем OpenVPN 2. Запускаем OpenVPN GUI (при первом запуске он создаёт папку в профиле пользователя) 3. Копируем конфиг client.ovpn в профиль пользователя в папку OpenVPN\config\ 4. Если нужно добавляем приложение openvpn в доверенные в антивирусе.</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.9100</div><div><strong>команды OpenVPN.txt</strong> | Paragraph block 21</div><div class='chunk-text'>На компьютере пользователя в офисе (настраиваем сервер): 1. Устанавливаем OpenVPN 2. Копируем конфиг server.ovpn в c:\Program Files\OpenVPN\config\ 3. В службах ставим автоматическую загрузку и запускаем OpenVPNService 4. Добавляем в брандмауэр Панель управления\Система и безопасность\Брандмауэр Защитника Windows\Разре...</div></article></div></section><section class='question-card'><h2>Q6. Какой путь необходимо использовать для настройки сетевых скриптов в CentOS?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Настройки находятся в /etc/sysconfig/network-scripts.</p></div><div><span class='label'>Ожидаемые источники</span><p>настройка ip centos (FreePBX).txt</p></div><div><span class='label'>Качество без RAG</span><p>100% (2/2)</p></div><div><span class='label'>Качество с RAG</span><p>100% (2/2)</p></div><div><span class='label'>Разница</span><p><span class='badge neutral'>+0%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>настройка ip centos (FreePBX).txt</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Для настройки сетевых скриптов в CentOS необходимо использовать путь `/etc/sysconfig/network-scripts/`.</pre></article><article><h3>С RAG</h3><pre>Для настройки сетевых скриптов в CentOS необходимо использовать путь `/etc/sysconfig/network-scripts`.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=0.9100</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 2</div><div class='chunk-text'>копируем из eth0 в eth1</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=0.8800</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 1</div><div class='chunk-text'>настройки здесь: /etc/sysconfig/network-scripts</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.8800</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 3</div><div class='chunk-text'>/etc/init.d/network restart</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.8800</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 4</div><div class='chunk-text'>или, если установлено:</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.8800</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 5</div><div class='chunk-text'>nmtui</div></article></div></section><section class='question-card'><h2>Q7. Какой шаг необходимо выполнить для перезапуска сети в CentOS после изменения настроек?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Необходимо выполнить команду /etc/init.d/network restart.</p></div><div><span class='label'>Ожидаемые источники</span><p>настройка ip centos (FreePBX).txt</p></div><div><span class='label'>Качество без RAG</span><p>0% (0/2)</p></div><div><span class='label'>Качество с RAG</span><p>50% (1/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+50%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>настройка ip centos (FreePBX).txt</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Для перезапуска сети в CentOS после изменения настроек необходимо выполнить команду `systemctl restart network`.</pre></article><article><h3>С RAG</h3><pre>Для перезапуска сети в CentOS после изменения настроек необходимо выполнить команду `/etc/init.d/network restart` или использовать `nmtui`, если установлено.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=0.8600</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 2</div><div class='chunk-text'>копируем из eth0 в eth1</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=0.8300</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 1</div><div class='chunk-text'>настройки здесь: /etc/sysconfig/network-scripts</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.8300</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 3</div><div class='chunk-text'>/etc/init.d/network restart</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.8300</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 4</div><div class='chunk-text'>или, если установлено:</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.8300</div><div><strong>настройка ip centos (FreePBX).txt</strong> | Paragraph block 5</div><div class='chunk-text'>nmtui</div></article></div></section><section class='question-card'><h2>Q8. Какой максимальный ток, снимаемый с клемм X7 контроллера Ворота, не должен превышать?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Максимально возможный ток не должен превышать 200 мА.</p></div><div><span class='label'>Ожидаемые источники</span><p>Ворота контроллер.pdf</p></div><div><span class='label'>Качество без RAG</span><p>0% (0/2)</p></div><div><span class='label'>Качество с RAG</span><p>50% (1/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+50%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>Ворота контроллер.pdf</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Не хватает подтвержденной информации о максимальном токе, снимаемом с клемм X7 контроллера Ворота.</pre></article><article><h3>С RAG</h3><pre>Максимально возможный ток, снимаемый с клемм X7 контроллера Ворота, не должен превышать 200 мА.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=1.1200</div><div><strong>Ворота контроллер.pdf</strong> | Page 3</div><div class='chunk-text'>3 ЭЛЕКТРИЧЕСКИЕ ПОДКЛЮЧЕНИЯ Переключатель Назначение Функция Положение переключателя Dip1 Автоматизация одностворчатых ворот Включена ON Отключена OFF Dip2 Раздельное управление Включена ON Отключена OFF Для подключения нескольких устройств соедините их NО контакты параллельно. X6 (клемма оранжевого цвета STOP/GND) — к...</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=1.0200</div><div><strong>Ворота контроллер.pdf</strong> | Page 2</div><div class='chunk-text'>2 ЭЛЕКТРИЧЕСКИЕ ПОДКЛЮЧЕНИЯ 1. ЭЛЕКТРИЧЕСКИЕ ПОДКЛЮЧЕНИЯ ВНИМАНИЕ! Провода в кабеле должны быть защищены от контакта с любыми шероховатыми и острыми деталями. Все под- ключения проводите только при выключенном питании. 1.1. СХЕМА БЛОКА УПРАВЛЕНИЯ Нейтраль Фаза 220–240 В 50 Гц М2М1 Сигнальная лампа 2 3 4 5 1 2 Фотоэлеме...</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.9400</div><div><strong>Ворота контроллер.pdf</strong> | Page 4</div><div class='chunk-text'>4 ПРОГРАММИРОВАНИЕ ПРИВОДА 2. ПРОГРАММИРОВАНИЕ ПРИВОДА 2.1. НАСТРОЙКА РАБОТЫ ПРИВОДА 1. Установите створки в закрытое положение и приведите приводы в заблокированное состояние (при наличии при- твора, настройте задержку створки 1). 2. Нажмите и удерживайте кнопку «P» в течение 3 сек., створка 1 начнет движение на откры...</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.9100</div><div><strong>Ворота контроллер.pdf</strong> | Page 5</div><div class='chunk-text'>5 ПРОГРАММИРОВАНИЕ ПУЛЬТОВ ДУ Индикатор Назначение Горит Не горит Логика NO SwCL1 концевой выключатель на закрытие первой створки сработал не сработал SwOp1 концевой выключатель на открытие первой створки сработал не сработал SwCL2 концевой выключатель на закрытие второй створки сработал не сработал SwOp2 концевой выкл...</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.8800</div><div><strong>Ворота контроллер.pdf</strong> | Page 1</div><div class='chunk-text'>Плата управления PCB-SW MINI Электрические подключения 3 Программирование привода 4 Программирование пультов ДУ 5 Маркировка кнопок пультов ДУ DoorHan 6 © DoorHan, 12.2018 Руководство по программированию Актуально для версий: ПО — v 1.2; плата — v 1.1</div></article></div></section><section class='question-card'><h2>Q9. Какой шаг необходимо выполнить для смены логики работы концевых выключателей на контроллере Ворота?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Нужно нажать и удерживать кнопку «P», а затем подать напряжение питания на плату.</p></div><div><span class='label'>Ожидаемые источники</span><p>Ворота контроллер.pdf</p></div><div><span class='label'>Качество без RAG</span><p>0% (0/2)</p></div><div><span class='label'>Качество с RAG</span><p>50% (1/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+50%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>Ворота контроллер.pdf</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Не хватает подтвержденной информации о шаге, необходимом для смены логики работы концевых выключателей на контроллере Ворота.</pre></article><article><h3>С RAG</h3><pre>Для смены логики работы концевых выключателей с NO на NC и наоборот необходимо нажать и удерживать кнопку «P», а затем, не отпуская кнопку, подать напряжение питания на плату. Если выбрана логика NC, при подаче питания на плату загорятся светодиоды Program и Remote примерно на 1 секунду. Если выбрана логика NO, то светодиоды загораться не будут.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=1.5100</div><div><strong>Ворота контроллер.pdf</strong> | Page 3</div><div class='chunk-text'>3 ЭЛЕКТРИЧЕСКИЕ ПОДКЛЮЧЕНИЯ Переключатель Назначение Функция Положение переключателя Dip1 Автоматизация одностворчатых ворот Включена ON Отключена OFF Dip2 Раздельное управление Включена ON Отключена OFF Для подключения нескольких устройств соедините их NО контакты параллельно. X6 (клемма оранжевого цвета STOP/GND) — к...</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=1.5000</div><div><strong>Ворота контроллер.pdf</strong> | Page 2</div><div class='chunk-text'>2 ЭЛЕКТРИЧЕСКИЕ ПОДКЛЮЧЕНИЯ 1. ЭЛЕКТРИЧЕСКИЕ ПОДКЛЮЧЕНИЯ ВНИМАНИЕ! Провода в кабеле должны быть защищены от контакта с любыми шероховатыми и острыми деталями. Все под- ключения проводите только при выключенном питании. 1.1. СХЕМА БЛОКА УПРАВЛЕНИЯ Нейтраль Фаза 220–240 В 50 Гц М2М1 Сигнальная лампа 2 3 4 5 1 2 Фотоэлеме...</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=1.5000</div><div><strong>Ворота контроллер.pdf</strong> | Page 4</div><div class='chunk-text'>4 ПРОГРАММИРОВАНИЕ ПРИВОДА 2. ПРОГРАММИРОВАНИЕ ПРИВОДА 2.1. НАСТРОЙКА РАБОТЫ ПРИВОДА 1. Установите створки в закрытое положение и приведите приводы в заблокированное состояние (при наличии при- твора, настройте задержку створки 1). 2. Нажмите и удерживайте кнопку «P» в течение 3 сек., створка 1 начнет движение на откры...</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=1.5000</div><div><strong>Ворота контроллер.pdf</strong> | Page 5</div><div class='chunk-text'>5 ПРОГРАММИРОВАНИЕ ПУЛЬТОВ ДУ Индикатор Назначение Горит Не горит Логика NO SwCL1 концевой выключатель на закрытие первой створки сработал не сработал SwOp1 концевой выключатель на открытие первой створки сработал не сработал SwCL2 концевой выключатель на закрытие второй створки сработал не сработал SwOp2 концевой выкл...</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=1.4800</div><div><strong>Ворота контроллер.pdf</strong> | Page 1</div><div class='chunk-text'>Плата управления PCB-SW MINI Электрические подключения 3 Программирование привода 4 Программирование пультов ДУ 5 Маркировка кнопок пультов ДУ DoorHan 6 © DoorHan, 12.2018 Руководство по программированию Актуально для версий: ПО — v 1.2; плата — v 1.1</div></article></div></section><section class='question-card'><h2>Q10. Какой интерфейс поддерживают считыватели, подключаемые к контроллеру Sigur E300H?</h2><div class='meta-grid'><div><span class='label'>Ожидание</span><p>Считыватели поддерживают выходной интерфейс Wiegand-26, Wiegand-34 или Touch memory.</p></div><div><span class='label'>Ожидаемые источники</span><p>Sigur_E300H.pdf</p></div><div><span class='label'>Качество без RAG</span><p>50% (1/2)</p></div><div><span class='label'>Качество с RAG</span><p>100% (2/2)</p></div><div><span class='label'>Разница</span><p><span class='badge good'>+50%</span></p></div><div><span class='label'>Найдены нужные источники</span><p>Sigur_E300H.pdf</p></div></div><div class='answer-grid'><article><h3>Без RAG</h3><pre>Не хватает подтвержденной информации о поддерживаемом интерфейсе считывателей, подключаемых к контроллеру Sigur E300H.</pre></article><article><h3>С RAG</h3><pre>К контроллеру Sigur E300H могут быть подключены считыватели, поддерживающие выходной интерфейс Wiegand-26, Wiegand-34 или Touch memory.</pre></article></div><h3>Retrieval-чunks для режима с RAG</h3><div class='chunk-list'><article class='chunk'><div class='chunk-meta'>#1 | score=1.4800</div><div><strong>Sigur сервисный режим контролера.txt</strong> | Paragraph block 1</div><div class='chunk-text'>в файле C:\Users\voronkov.WS-042\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20 сохраняем в программе sigur клиент фаил =&gt; меню разработчика(alt+D)</div></article><article class='chunk'><div class='chunk-meta'>#2 | score=0.9007</div><div><strong>Sigur_E300H.pdf</strong> | Page 16</div><div class='chunk-text'>Контроллер СКУД Sigur E300H 8.2 Подключение считывателей с интерфейсом Wiegand. ! Для управления электропитанием и работы охранных функций контроллера необходимо использовать только считыватели с Touch memory интерфейсом, и на входе, и внутри номера. Это требование связано с тем, что в настоящий момент известна одна мо...</div></article><article class='chunk'><div class='chunk-meta'>#3 | score=0.8699</div><div><strong>Sigur_E300H.pdf</strong> | Page 15</div><div class='chunk-text'>Контроллер СКУД Sigur E300H 8. Подключение считывателей и контакторов TM, общие сведения. К контроллеру может быть подключено до двух считывателей, поддерживающих выходной интерфейс Wiegand-26, Wiegand-34 или Touch memory. Считыватели подключаются к клеммам «+12», «GND», «D0», «D1» и «LED» клеммных блоков PORT1 и PORT2...</div></article><article class='chunk'><div class='chunk-meta'>#4 | score=0.8695</div><div><strong>Sigur_E300H.pdf</strong> | Page 20</div><div class='chunk-text'>Контроллер СКУД Sigur E300H 9. Подключение замка двери, общие сведения. Замок управляется с помощью реле « RELE1», расположенного на плате контроллера. Оно имеет одну группу контактов, работающих на переключение ( COM – общий контакт, NC – нормально замкнутый, NO – нормально разомкнутый). Поддерживаются два режима упра...</div></article><article class='chunk'><div class='chunk-meta'>#5 | score=0.8629</div><div><strong>Sigur_E300H.pdf</strong> | Page 13</div><div class='chunk-text'>Контроллер СКУД Sigur E300H Рисунок 2. Подключение оборудования к контроллеру. Примечание: п одключение к контроллеру линий управления электропитанием осуществляется только через внешние реле или магнитные пускатели. Таблица 4. Установка DIP-переключателя CONFIG. Не используются Тип замка Не используются Интерфейс счит...</div></article></div></section>
+  </main>
+</body>
+</html>

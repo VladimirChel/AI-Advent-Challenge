@@ -1,0 +1,18 @@
+{
+    "conversation_id": "conv-day19-pipeline",
+    "branch_id": "main",
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Запусти run_mqtt_pipeline в dry_run режиме и коротко сообщи результат."
+      }
+    ],
+    "mcp": {
+      "enabled": true,
+      "server_script": "../Day19/server.py",
+      "wait_after_start_seconds": 0,
+      "tool_call_timeout_seconds": 60,
+      "max_tool_roundtrips": 4
+    }
+ }

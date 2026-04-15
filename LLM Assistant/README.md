@@ -1,0 +1,213 @@
+﻿# LLM Assistant
+
+LLM Assistant is a FastAPI backend for building an AI assistant with persistent memory. The service accepts chat requests, enriches them with conversation context, task state, summaries, facts, and retrieved memory fragments, then sends the assembled prompt to an LLM and stores the result back into memory.
+
+## Project Description
+
+This project is not just a proxy to a language model. It is an agent-oriented backend that helps the model work with ongoing conversations and long-running tasks.
+
+The service supports:
+
+- generation through an external LLM API;
+- MCP tools through one or more local `stdio` servers;
+- short-term memory from recent messages;
+- working memory tied to a specific task;
+- long-term memory with summaries and extracted facts;
+- retrieval of relevant memory chunks for the current request;
+- project invariants stored outside the dialogue and enforced as hard constraints;
+- branching conversations through `conversation_id` and `branch_id`;
+- response validation rules, including JSON checks and required fragments;
+- storage of dialogue history and memory artifacts in PostgreSQL.
+
+## How It Works
+
+When a user sends a request to `/generate`, the system:
+
+1. Loads recent dialogue history.
+2. Loads project invariants from a dedicated file outside the chat history.
+3. Adds task context if `task_id` is provided.
+4. Restores long-term summary and sticky facts.
+5. Retrieves relevant memory chunks based on the current user input.
+6. Builds the final prompt and sends it to the model.
+7. If MCP is enabled, discovers tools from one or more MCP servers and lets the model call them in a chain.
+8. Runs an invariant compliance check against the draft answer.
+9. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
+
+This makes the assistant more consistent across long dialogues and better suited for multi-step workflows.
+
+## Main Components
+
+- `main.py` - FastAPI application entrypoint, lifecycle, health checks, and model listing.
+- `api/generate.py` - main generation endpoint and post-processing pipeline.
+- `llm/` - request schemas, model client, and output validation.
+- `llm/mcp_client.py` - local MCP client that starts a `stdio` server and bridges its tools into OpenAI tool calling.
+- `memory/` - orchestration of short-term, working, and long-term memory.
+- `invariants/` - loading, prompt injection, and compliance checks for hard project constraints.
+- `repositories/` - persistence layer for messages, facts, summaries, and chunks.
+- `tasks/` - task-aware memory management.
+- `db.py` - PostgreSQL connection pool and schema initialization.
+- `docs/assistant_invariants.json` - dedicated source of truth for architectural, technical, stack, and business invariants.
+
+## API
+
+### `POST /generate`
+
+Creates an assistant response using live messages plus memory context.
+
+Example request:
+
+```json
+{
+  "conversation_id": "conv-1",
+  "branch_id": "main",
+  "task_id": "task-42",
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Составь краткий план реализации"
+    }
+  ],
+  "temperature": 0.2,
+  "mcp": {
+    "enabled": true,
+    "servers": [
+      {
+        "id": "ops",
+        "server_script": "../Day16/server.py"
+      }
+    ]
+  }
+}
+```
+
+Example response:
+
+```json
+{
+  "request_id": "5eb7b4a4-2d7a-4d66-9e68-6c62f4d94f48",
+  "conversation_id": "conv-1",
+  "branch_id": "main",
+  "task_id": "task-42",
+  "model": "gpt-4o-mini",
+  "content": "Вот краткий план реализации...",
+  "latency_ms": 842,
+  "mcp_used": true,
+  "mcp_servers": ["../Day16/server.py"],
+  "mcp_tools_offered": 4,
+  "mcp_tool_calls": ["ops.mqtt_status"],
+  "short_term_used": true,
+  "working_memory_used": true,
+  "long_term_used": true,
+  "retrieval_used": true
+}
+```
+
+### `GET /health`
+
+Returns service status, database state, default model, and current UTC time.
+
+### `GET /models`
+
+Returns the list of models available through the configured LLM provider.
+
+### `GET /invariants/current`
+
+Returns the current project invariant set loaded from the dedicated invariants file. Requires authentication.
+
+## Tech Stack
+
+- Python
+- FastAPI
+- OpenAI-compatible client
+- PostgreSQL
+- Psycopg + connection pooling
+- Pydantic
+
+## Configuration
+
+The application uses environment variables from `.env`.
+
+Key parameters:
+
+- `PROXYAPI_API_KEY` - API key for the LLM provider;
+- `PROXYAPI_BASE_URL` - base URL of the provider;
+- `DEFAULT_MODEL` - default model identifier;
+- `DATABASE_URL` - PostgreSQL connection string;
+- `INVARIANTS_FILE` - path to the JSON file with hard project invariants;
+- `REQUEST_TIMEOUT_SECONDS` - timeout for LLM requests.
+- `MCP_ENABLED_BY_DEFAULT` - enable MCP on every `/generate` request unless overridden.
+- `MCP_SERVER_SCRIPT` - single default MCP server script kept for backward compatibility.
+- `MCP_SERVER_SCRIPTS` - optional list of default MCP server scripts. Supports JSON array or `;`-separated paths.
+- `MCP_WAIT_AFTER_START_SECONDS` - optional delay after server start before the first tool call.
+
+## MCP
+
+The backend can expose tools from one or more local MCP servers that speak `stdio`. For this repository, the intended smoke-test server lives in [../Day16/server.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challenge/Repo/AI%20Advent%20Challenge/Day16/server.py).
+
+When `mcp.enabled=true`, Day12:
+
+- starts each configured server as a subprocess;
+- reads tool lists via MCP;
+- namespaces tool names as `server_id__tool_name` to avoid collisions;
+- converts all discovered tools into OpenAI-compatible function tools;
+- lets the model chain tool calls across different MCP servers before returning final text.
+
+Example request for manual testing:
+
+```json
+{
+  "conversation_id": "conv-mcp-1",
+  "branch_id": "main",
+  "model": "openai/gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Use available tools, gather data from the connected MCP servers, and summarize the result."
+    }
+  ],
+  "mcp": {
+    "enabled": true,
+    "servers": [
+      {
+        "id": "ops",
+        "server_script": "../Day16/server.py"
+      },
+      {
+        "id": "aux",
+        "server_script": "../AnotherServer/server.py"
+      }
+    ]
+  }
+}
+```
+
+## Invariants
+
+Project invariants are stored separately from the dialogue in `docs/assistant_invariants.json`.
+
+The backend uses them in two places:
+
+- while assembling the system context for the main model call;
+- while checking the generated answer for invariant violations before returning it.
+
+Because of this, the assistant:
+
+- explicitly reports which invariants were taken into account;
+- refuses options that violate architecture, stack, technical, or business constraints;
+- does not allow chat messages to rewrite the invariant set.
+
+## Run
+
+```bash
+uvicorn main:app --reload
+```
+
+After startup:
+
+- API: `http://localhost:8000`
+- Swagger UI: `http://localhost:8000/docs`
+
+## Why This Project Matters
+
+This backend is useful as a foundation for assistants that need memory, continuity, and structured task support. It can serve as a base for internal copilots, research assistants, support bots, or agent systems where the model should remember prior context instead of answering each request in isolation.

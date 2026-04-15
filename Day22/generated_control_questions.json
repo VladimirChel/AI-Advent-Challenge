@@ -1,0 +1,174 @@
+{
+  "generated_from": "selected Day21 files",
+  "question_count": 10,
+  "questions": [
+    {
+      "identifier": "Q1",
+      "question": "Как включить сервисный режима контроллера Sigur?",
+      "expectation": "В файл tcgui.cfg добавить строку DevelMode=1 должна быть добавлена после строки ServerList.0.IP=192.168.13.20.",
+      "required_sources": [
+        "Sigur сервисный режим контролера.txt"
+      ],
+      "keyword_groups": [
+        [
+          "DevelMode=1"
+        ],
+        [
+          "ServerList.0.IP=192.168.13.20"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q2",
+      "question": "Какой максимальный ток потребления считывателей, подключаемых к контроллеру Sigur E300H?",
+      "expectation": "Суммарный ток потребления считывателей не должен превышать 200 мА.",
+      "required_sources": [
+        "Sigur_E300H.pdf"
+      ],
+      "keyword_groups": [
+        [
+          "200 мА"
+        ],
+        [
+          "максимальный ток",
+          "ток потребления"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q3",
+      "question": "Как отключить автоматическое добавление принтеров в Windows 10 через GPMC?",
+      "expectation": "Необходимо перейти в Computer Configuration -> Policies -> Administrative Templates -> Printers и выбрать \"Disabled\" для \"Add Printer wizard - Network scan page (Managed network)\".",
+      "required_sources": [
+        "отключить автоматич добавление принтеров вин10.txt"
+      ],
+      "keyword_groups": [
+        [
+          "GPMC",
+          "Computer Configuration",
+          "Policies",
+          "Administrative Templates",
+          "Printers"
+        ],
+        [
+          "Disabled"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q4",
+      "question": "Какой файл необходимо отредактировать для изменения параметров сертификатов в OpenVPN?",
+      "expectation": "Файл C:\\Program Files\\OpenVPN\\easy-rsa\\openssl-1.0.0.cnf должен быть отредактирован.",
+      "required_sources": [
+        "команды OpenVPN.txt"
+      ],
+      "keyword_groups": [
+        [
+          "C:\\Program Files\\OpenVPN\\easy-rsa\\openssl-1.0.0.cnf"
+        ],
+        [
+          "отредактировать",
+          "изменить"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q5",
+      "question": "Какой командой в OpenVPN можно удалить все ключи при новой установке?",
+      "expectation": "Команда clean-all используется для удаления всех ключей.",
+      "required_sources": [
+        "команды OpenVPN.txt"
+      ],
+      "keyword_groups": [
+        [
+          "clean-all"
+        ],
+        [
+          "удаляет все ключи"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q6",
+      "question": "Какой путь необходимо использовать для настройки сетевых скриптов в CentOS?",
+      "expectation": "Настройки находятся в /etc/sysconfig/network-scripts.",
+      "required_sources": [
+        "настройка ip centos (FreePBX).txt"
+      ],
+      "keyword_groups": [
+        [
+          "/etc/sysconfig/network-scripts"
+        ],
+        [
+          "настройки"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q7",
+      "question": "Какой шаг необходимо выполнить для перезапуска сети в CentOS после изменения настроек?",
+      "expectation": "Необходимо выполнить команду /etc/init.d/network restart.",
+      "required_sources": [
+        "настройка ip centos (FreePBX).txt"
+      ],
+      "keyword_groups": [
+        [
+          "/etc/init.d/network restart"
+        ],
+        [
+          "перезапуск сети"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q8",
+      "question": "Какой максимальный ток, снимаемый с клемм X7 контроллера Ворота, не должен превышать?",
+      "expectation": "Максимально возможный ток не должен превышать 200 мА.",
+      "required_sources": [
+        "Ворота контроллер.pdf"
+      ],
+      "keyword_groups": [
+        [
+          "200 мА"
+        ],
+        [
+          "максимальный ток"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q9",
+      "question": "Какой шаг необходимо выполнить для смены логики работы концевых выключателей на контроллере Ворота?",
+      "expectation": "Нужно нажать и удерживать кнопку «P», а затем подать напряжение питания на плату.",
+      "required_sources": [
+        "Ворота контроллер.pdf"
+      ],
+      "keyword_groups": [
+        [
+          "нажать и удерживать кнопку «P»"
+        ],
+        [
+          "смена логики работы"
+        ]
+      ]
+    },
+    {
+      "identifier": "Q10",
+      "question": "Какой интерфейс поддерживают считыватели, подключаемые к контроллеру Sigur E300H?",
+      "expectation": "Считыватели поддерживают выходной интерфейс Wiegand-26, Wiegand-34 или Touch memory.",
+      "required_sources": [
+        "Sigur_E300H.pdf"
+      ],
+      "keyword_groups": [
+        [
+          "Wiegand-26",
+          "Wiegand-34",
+          "Touch memory"
+        ],
+        [
+          "интерфейс"
+        ]
+      ]
+    }
+  ]
+}

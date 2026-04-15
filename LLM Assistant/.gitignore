@@ -3,6 +3,4 @@ config.json
 .env
 *.pyc
 logs/
-documents/
-output/
-tests/
+temp/
