@@ -23,10 +23,11 @@
 
 ## Файлы в репозитории
 
-- `rag_compare.py` — сравнение обычного ответа и ответа с RAG для одного вопроса
+- `rag_compare.py` — сравнение обычного ответа и ответа с RAG для одного вопроса, с возможностью показать этапы retrieval и отключать отдельные стадии поиска
 - `generate_questions_from_sources.py` — генерация контрольных вопросов по выбранным файлам из `Day21`
 - `build_eval_report.py` — массовый прогон контрольных вопросов и сборка HTML-отчёта
 - `compare_single_question_rag.py` — отладочное сравнение двух RAG-веток на одном вопросе
+- `compare_topk_search_modes.py` — запуск `rag_compare.py` в трёх режимах retrieval и сравнение итогового `top-k`
 - `llm_backends.py` — единая обвязка для `LLM Assistant` и `Ollama`
 - `generated_control_questions.json` — пример сгенерированного набора вопросов
 - `rag_quality_report.html` — пример готового HTML-отчёта
@@ -78,6 +79,44 @@ python rag_compare.py "Какие требования описаны в док�
 - `--assistant-url <url>`
 - `--assistant-model <model>`
 - `--auth-token <token>`
+- `--show-retrieval-stages` — показать все этапы retrieval
+- `--disable-dense-search` — отключить dense embedding search
+- `--disable-lexical-rerank` — отключить lexical boost для dense-кандидатов
+- `--disable-lexical-fallback` — отключить keyword fallback по всем чанкам
+- `--retrieval-only` — выполнить только retrieval и не вызывать LLM
+
+### 1.1. Посмотреть этапы retrieval
+
+```bash
+python rag_compare.py "Как включить сервисный режим контроллера Sigur?" --show-retrieval-stages --retrieval-only
+```
+
+В этом режиме скрипт печатает:
+
+- `Query variants`
+- `Embedding queries`
+- кандидатов после `Dense stage`
+- кандидатов `After lexical rerank`
+- кандидатов `Lexical fallback`
+- финальный `top-k`
+
+### 1.2. Сравнить top-k для трёх режимов поиска
+
+```bash
+python compare_topk_search_modes.py "Как включить сервисный режим контроллера Sigur?"
+```
+
+Скрипт запускает `rag_compare.py` в трёх конфигурациях:
+
+- всё включено
+- выключен `lexical-rerank`
+- выключен `lexical-fallback`
+
+Если нужен подробный вывод по каждому режиму, можно добавить:
+
+```bash
+python compare_topk_search_modes.py "Как включить сервисный режим контроллера Sigur?" --show-retrieval-stages
+```
 
 ### 2. Сгенерировать контрольные вопросы по документам
 
@@ -154,8 +193,20 @@ python compare_single_question_rag.py "Как включить сервисны�
 - как отличается prompt между двумя RAG-ветками
 - как меняется итоговый ответ модели
 
+Для анализа именно retrieval-части удобнее использовать:
+
+```bash
+python compare_topk_search_modes.py "Как включить сервисный режим контроллера Sigur?" --show-retrieval-stages
+```
+
+Этот запуск помогает увидеть, как меняется `top-k`, если отключить:
+
+- `lexical-rerank`
+- `lexical-fallback`
+
 ## Замечания
 
 - Если `--auth-token` не передан и выбран `assistant`, код пытается зарегистрировать временного пользователя через `/auth/register`.
+- `rag_compare.py` не позволит одновременно отключить и `dense search`, и `lexical fallback`, потому что тогда retrieval не сможет собрать кандидатов.
 - При отсутствии файлов индекса или metadata скрипты ожидаемо падают с ошибкой: артефакты должны быть заранее собраны в `Day21`.
 - В репозитории уже лежат примерные результаты: `generated_control_questions.json` и `rag_quality_report.html`.

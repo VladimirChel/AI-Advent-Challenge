@@ -31,6 +31,32 @@ class RetrievedChunk:
     text: str
 
 
+@dataclass(slots=True)
+class RetrievalCandidate:
+    idx: int
+    chunk_id: str
+    source: str
+    section: str
+    dense_score: float | None = None
+    lexical_rerank_score: float | None = None
+    lexical_fallback_score: float | None = None
+    final_score: float | None = None
+
+
+@dataclass(slots=True)
+class RetrievalDebugInfo:
+    query_variants: list[str]
+    embedding_queries: list[str]
+    search_depth: int
+    dense_enabled: bool
+    lexical_rerank_enabled: bool
+    lexical_fallback_enabled: bool
+    dense_candidates: list[RetrievalCandidate]
+    reranked_candidates: list[RetrievalCandidate]
+    fallback_candidates: list[RetrievalCandidate]
+    final_candidates: list[RetrievalCandidate]
+
+
 RUSSIAN_STOPWORDS = {
     "как",
     "включить",
@@ -144,6 +170,31 @@ def parse_args() -> argparse.Namespace:
         default="openai/gpt-4o-mini",
         help="Модель для запроса к LLM Assistant. По умолчанию: %(default)s",
     )
+    parser.add_argument(
+        "--disable-dense-search",
+        action="store_true",
+        help="Disable dense embedding search over FAISS.",
+    )
+    parser.add_argument(
+        "--disable-lexical-rerank",
+        action="store_true",
+        help="Disable lexical boost for dense-search candidates.",
+    )
+    parser.add_argument(
+        "--disable-lexical-fallback",
+        action="store_true",
+        help="Disable keyword-based fallback over all chunks.",
+    )
+    parser.add_argument(
+        "--show-retrieval-stages",
+        action="store_true",
+        help="Print all retrieval stages and their candidates.",
+    )
+    parser.add_argument(
+        "--retrieval-only",
+        action="store_true",
+        help="Run retrieval only and skip LLM calls.",
+    )
     return parser.parse_args()
 
 
@@ -165,6 +216,10 @@ def retrieve_chunks(
     embed_model: str,
     ollama_url: str,
     top_k: int,
+    enable_dense_search: bool = True,
+    enable_lexical_rerank: bool = True,
+    enable_lexical_fallback: bool = True,
+    debug_info: RetrievalDebugInfo | None = None,
 ) -> list[RetrievedChunk]:
     try:
         import faiss
@@ -187,39 +242,99 @@ def retrieve_chunks(
 
     index = faiss.read_index(str(index_file))
     candidate_scores: dict[int, float] = {}
+    dense_scores: dict[int, float] = {}
+    lexical_rerank_scores: dict[int, float] = {}
+    fallback_scores: dict[int, float] = {}
     query_variants = build_query_variants(question)
     embedding_queries = build_embedding_queries(question)
     search_depth = min(len(items), max(top_k * 10, 20))
 
-    for query_variant in embedding_queries:
-        query_embedding = day21_search.call_ollama_embed(
-            ollama_url=ollama_url,
-            model=embed_model,
-            text=query_variant,
-        )
-        query_vector = np.array([query_embedding], dtype="float32")
-        faiss.normalize_L2(query_vector)
-        distances, indices = index.search(query_vector, search_depth)
-        for score, idx in zip(distances[0], indices[0]):
-            if idx < 0 or idx >= len(items):
-                continue
-            reranked_score = float(score) + lexical_boost(query_variant, items[idx])
-            previous = candidate_scores.get(idx)
-            if previous is None or reranked_score > previous:
-                candidate_scores[idx] = reranked_score
+    if enable_dense_search:
+        for query_variant in embedding_queries:
+            query_embedding = day21_search.call_ollama_embed(
+                ollama_url=ollama_url,
+                model=embed_model,
+                text=query_variant,
+            )
+            query_vector = np.array([query_embedding], dtype="float32")
+            faiss.normalize_L2(query_vector)
+            distances, indices = index.search(query_vector, search_depth)
+            for score, idx in zip(distances[0], indices[0]):
+                if idx < 0 or idx >= len(items):
+                    continue
+                dense_score = float(score)
+                previous_dense = dense_scores.get(idx)
+                if previous_dense is None or dense_score > previous_dense:
+                    dense_scores[idx] = dense_score
 
-    for idx, raw_item in enumerate(items):
-        lexical_score = max(lexical_boost(query_variant, raw_item) for query_variant in query_variants)
-        if lexical_score <= 0:
-            continue
-        # Keyword fallback helps when the exact topic appears in title/source,
-        # but the dense embedding search ranks the chunk too low.
-        fallback_score = 0.5 + lexical_score
-        previous = candidate_scores.get(idx)
-        if previous is None or fallback_score > previous:
-            candidate_scores[idx] = fallback_score
+                reranked_score = dense_score
+                if enable_lexical_rerank:
+                    lexical_score = lexical_boost(query_variant, items[idx])
+                    previous_lexical = lexical_rerank_scores.get(idx)
+                    if previous_lexical is None or lexical_score > previous_lexical:
+                        lexical_rerank_scores[idx] = lexical_score
+                    reranked_score += lexical_score
+
+                previous = candidate_scores.get(idx)
+                if previous is None or reranked_score > previous:
+                    candidate_scores[idx] = reranked_score
+
+    if enable_lexical_fallback:
+        for idx, raw_item in enumerate(items):
+            lexical_score = max(lexical_boost(query_variant, raw_item) for query_variant in query_variants)
+            if lexical_score <= 0:
+                continue
+            # Keyword fallback helps when the exact topic appears in title/source,
+            # but the dense embedding search ranks the chunk too low.
+            fallback_score = 0.5 + lexical_score
+            previous_fallback = fallback_scores.get(idx)
+            if previous_fallback is None or fallback_score > previous_fallback:
+                fallback_scores[idx] = fallback_score
+            previous = candidate_scores.get(idx)
+            if previous is None or fallback_score > previous:
+                candidate_scores[idx] = fallback_score
 
     ranked_indices = sorted(candidate_scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
+
+    if debug_info is not None:
+        debug_info.query_variants = query_variants
+        debug_info.embedding_queries = embedding_queries
+        debug_info.search_depth = search_depth
+        debug_info.dense_enabled = enable_dense_search
+        debug_info.lexical_rerank_enabled = enable_lexical_rerank
+        debug_info.lexical_fallback_enabled = enable_lexical_fallback
+        debug_info.dense_candidates = build_debug_candidates(
+            items=items,
+            final_scores=dense_scores,
+            dense_scores=dense_scores,
+            lexical_rerank_scores=lexical_rerank_scores,
+            fallback_scores={},
+            limit=search_depth,
+        )
+        debug_info.reranked_candidates = build_debug_candidates(
+            items=items,
+            final_scores=candidate_scores if enable_lexical_rerank else dense_scores,
+            dense_scores=dense_scores,
+            lexical_rerank_scores=lexical_rerank_scores,
+            fallback_scores={},
+            limit=search_depth,
+        )
+        debug_info.fallback_candidates = build_debug_candidates(
+            items=items,
+            final_scores=fallback_scores,
+            dense_scores={},
+            lexical_rerank_scores={},
+            fallback_scores=fallback_scores,
+            limit=max(top_k * 3, 10),
+        )
+        debug_info.final_candidates = build_debug_candidates(
+            items=items,
+            final_scores=dict(ranked_indices),
+            dense_scores=dense_scores,
+            lexical_rerank_scores=lexical_rerank_scores,
+            fallback_scores=fallback_scores,
+            limit=top_k,
+        )
 
     results: list[RetrievedChunk] = []
     for rank, (idx, score) in enumerate(ranked_indices, start=1):
@@ -293,6 +408,35 @@ def build_embedding_queries(question: str) -> list[str]:
             add_query(variant)
 
     return embedding_queries
+
+
+def build_debug_candidates(
+    *,
+    items: list[dict[str, Any]],
+    final_scores: dict[int, float],
+    dense_scores: dict[int, float],
+    lexical_rerank_scores: dict[int, float],
+    fallback_scores: dict[int, float],
+    limit: int,
+) -> list[RetrievalCandidate]:
+    ranked = sorted(final_scores.items(), key=lambda item: item[1], reverse=True)[:limit]
+    candidates: list[RetrievalCandidate] = []
+    for idx, final_score in ranked:
+        raw_item = items[idx]
+        chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+        candidates.append(
+            RetrievalCandidate(
+                idx=idx,
+                chunk_id=str(chunk.get("chunk_id", "")),
+                source=str(chunk.get("source", "")),
+                section=str(chunk.get("section", "")),
+                dense_score=dense_scores.get(idx),
+                lexical_rerank_score=lexical_rerank_scores.get(idx),
+                lexical_fallback_score=fallback_scores.get(idx),
+                final_score=float(final_score),
+            )
+        )
+    return candidates
 
 
 def normalize_match_token(token: str) -> str:
@@ -564,15 +708,87 @@ def print_chunks(chunks: list[RetrievedChunk]) -> None:
         print("")
 
 
+def format_optional_score(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.4f}"
+
+
+def print_candidate_table(title: str, candidates: list[RetrievalCandidate]) -> None:
+    print(title)
+    if not candidates:
+        print("Нет кандидатов.")
+        print("")
+        return
+
+    for rank, candidate in enumerate(candidates, start=1):
+        print(
+            f"{rank}. final={format_optional_score(candidate.final_score)} "
+            f"dense={format_optional_score(candidate.dense_score)} "
+            f"rerank={format_optional_score(candidate.lexical_rerank_score)} "
+            f"fallback={format_optional_score(candidate.lexical_fallback_score)}"
+        )
+        print(f"   chunk_id: {candidate.chunk_id}")
+        print(f"   source: {candidate.source}")
+        print(f"   section: {candidate.section}")
+    print("")
+
+
+def print_retrieval_debug_info(debug_info: RetrievalDebugInfo) -> None:
+    print("=== Этапы retrieval ===")
+    print(f"dense search: {'on' if debug_info.dense_enabled else 'off'}")
+    print(f"lexical rerank: {'on' if debug_info.lexical_rerank_enabled else 'off'}")
+    print(f"lexical fallback: {'on' if debug_info.lexical_fallback_enabled else 'off'}")
+    print(f"search depth: {debug_info.search_depth}")
+    print("")
+
+    print("Query variants:")
+    if debug_info.query_variants:
+        for variant in debug_info.query_variants:
+            print(f"- {variant}")
+    else:
+        print("- none")
+    print("")
+
+    print("Embedding queries:")
+    if debug_info.embedding_queries:
+        for query in debug_info.embedding_queries:
+            print(f"- {query}")
+    else:
+        print("- none")
+    print("")
+
+    print_candidate_table("Dense stage candidates:", debug_info.dense_candidates)
+    print_candidate_table("After lexical rerank:", debug_info.reranked_candidates)
+    print_candidate_table("Lexical fallback candidates:", debug_info.fallback_candidates)
+    print_candidate_table("Final top-k:", debug_info.final_candidates)
+
+
 def main() -> int:
     configure_stdio()
     args = parse_args()
+    if args.disable_dense_search and args.disable_lexical_fallback:
+        raise RuntimeError(
+            "Нельзя одновременно отключить dense search и lexical fallback: retrieval не из чего будет собирать кандидатов."
+        )
     index_file, metadata_file = resolve_retrieval_files(
         strategy=args.strategy,
         index_file=args.index_file,
         metadata_file=args.metadata_file,
     )
 
+    retrieval_debug = RetrievalDebugInfo(
+        query_variants=[],
+        embedding_queries=[],
+        search_depth=0,
+        dense_enabled=not args.disable_dense_search,
+        lexical_rerank_enabled=not args.disable_lexical_rerank,
+        lexical_fallback_enabled=not args.disable_lexical_fallback,
+        dense_candidates=[],
+        reranked_candidates=[],
+        fallback_candidates=[],
+        final_candidates=[],
+    )
     chunks = retrieve_chunks(
         question=args.question,
         index_file=index_file,
@@ -580,7 +796,17 @@ def main() -> int:
         embed_model=args.embed_model,
         ollama_url=args.ollama_url,
         top_k=args.top_k,
+        enable_dense_search=not args.disable_dense_search,
+        enable_lexical_rerank=not args.disable_lexical_rerank,
+        enable_lexical_fallback=not args.disable_lexical_fallback,
+        debug_info=retrieval_debug,
     )
+
+    if args.retrieval_only:
+        if args.show_retrieval_stages:
+            print_retrieval_debug_info(retrieval_debug)
+        print_chunks(chunks)
+        return 0
 
     auth_token = args.auth_token.strip() or register_temporary_user(args.assistant_url)
     plain_prompt = args.question
@@ -605,6 +831,8 @@ def main() -> int:
         user_id=args.user_id,
     )
 
+    if args.show_retrieval_stages:
+        print_retrieval_debug_info(retrieval_debug)
     print_chunks(chunks)
     print("=== Ответ без RAG ===")
     print(answer_without_rag or "[Пустой ответ]")
