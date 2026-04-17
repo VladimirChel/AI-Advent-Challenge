@@ -46,6 +46,40 @@ MCP_WAIT_AFTER_START_SECONDS = float(os.getenv("MCP_WAIT_AFTER_START_SECONDS", "
 MCP_MAX_TOOL_ROUNDTRIPS = int(os.getenv("MCP_MAX_TOOL_ROUNDTRIPS", "4"))
 MCP_TOOL_CALL_TIMEOUT_SECONDS = float(os.getenv("MCP_TOOL_CALL_TIMEOUT_SECONDS", "20"))
 
+RAG_ENABLED_BY_DEFAULT = os.getenv("RAG_ENABLED_BY_DEFAULT", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+RAG_DEFAULT_STRATEGY = os.getenv("RAG_DEFAULT_STRATEGY", "structure").strip() or "structure"
+RAG_INDEX_FILE = Path(os.getenv("RAG_INDEX_FILE", "")).resolve() if os.getenv("RAG_INDEX_FILE", "").strip() else None
+RAG_METADATA_FILE = (
+    Path(os.getenv("RAG_METADATA_FILE", "")).resolve() if os.getenv("RAG_METADATA_FILE", "").strip() else None
+)
+RAG_EMBED_MODEL = os.getenv("RAG_EMBED_MODEL", "bge-m3").strip()
+RAG_OLLAMA_URL = os.getenv("RAG_OLLAMA_URL", "http://localhost:11434").strip()
+RAG_MAX_CHUNKS = int(os.getenv("RAG_MAX_CHUNKS", "5"))
+RAG_MIN_RELEVANCE_SCORE = float(os.getenv("RAG_MIN_RELEVANCE_SCORE", "0.75"))
+RAG_DENSE_SEARCH_ENABLED = os.getenv("RAG_DENSE_SEARCH_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+RAG_LEXICAL_RERANK_ENABLED = os.getenv("RAG_LEXICAL_RERANK_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+RAG_LEXICAL_FALLBACK_ENABLED = os.getenv("RAG_LEXICAL_FALLBACK_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
 LOG_DIR = Path(os.getenv("LOG_DIR", "logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 

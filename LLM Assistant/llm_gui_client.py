@@ -44,6 +44,7 @@ class LLMTesterApp(ctk.CTk):
         self.require_json_var = ctk.BooleanVar(value=False)
         self.show_task_transition_in_chat_var = ctk.BooleanVar(value=True)
         self.enable_mcp_var = ctk.BooleanVar(value=False)
+        self.enable_rag_var = ctk.BooleanVar(value=False)
 
         self.access_token: str | None = None
         self.current_user: dict[str, Any] | None = None
@@ -406,6 +407,11 @@ class LLMTesterApp(ctk.CTk):
         )
         row += 1
 
+        ctk.CTkSwitch(right, text="Enable Day22 RAG", variable=self.enable_rag_var).grid(
+            row=row, column=0, padx=12, pady=(0, 6), sticky="w"
+        )
+        row += 1
+
         ctk.CTkLabel(right, text="MCP servers (one script per line)", anchor="w").grid(
             row=row, column=0, padx=8, pady=(8, 4), sticky="ew"
         )
@@ -576,6 +582,9 @@ class LLMTesterApp(ctk.CTk):
         payload["mcp"] = {
             "enabled": self.enable_mcp_var.get(),
             "servers": mcp_servers,
+        }
+        payload["rag"] = {
+            "enabled": self.enable_rag_var.get(),
         }
 
         return payload

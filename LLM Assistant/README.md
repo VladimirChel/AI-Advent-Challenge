@@ -10,6 +10,7 @@ The service supports:
 
 - generation through an external LLM API;
 - MCP tools through one or more local `stdio` servers;
+- optional Day22 RAG over FAISS artifacts from `../Day21`;
 - short-term memory from recent messages;
 - working memory tied to a specific task;
 - long-term memory with summaries and extracted facts;
@@ -28,10 +29,11 @@ When a user sends a request to `/generate`, the system:
 3. Adds task context if `task_id` is provided.
 4. Restores long-term summary and sticky facts.
 5. Retrieves relevant memory chunks based on the current user input.
-6. Builds the final prompt and sends it to the model.
-7. If MCP is enabled, discovers tools from one or more MCP servers and lets the model call them in a chain.
-8. Runs an invariant compliance check against the draft answer.
-9. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
+6. Optionally retrieves document chunks through the Day22 RAG pipeline.
+7. Builds the final prompt and sends it to the model.
+8. If MCP is enabled, discovers tools from one or more MCP servers and lets the model call them in a chain.
+9. Runs an invariant compliance check against the draft answer.
+10. Saves the assistant reply, updates task memory, extracts facts, and refreshes the conversation summary.
 
 This makes the assistant more consistent across long dialogues and better suited for multi-step workflows.
 
@@ -69,6 +71,9 @@ Example request:
     }
   ],
   "temperature": 0.2,
+  "rag": {
+    "enabled": true
+  },
   "mcp": {
     "enabled": true,
     "servers": [
@@ -99,7 +104,9 @@ Example response:
   "short_term_used": true,
   "working_memory_used": true,
   "long_term_used": true,
-  "retrieval_used": true
+  "retrieval_used": true,
+  "rag_used": true,
+  "rag_chunks_used": 5
 }
 ```
 
@@ -136,10 +143,27 @@ Key parameters:
 - `DATABASE_URL` - PostgreSQL connection string;
 - `INVARIANTS_FILE` - path to the JSON file with hard project invariants;
 - `REQUEST_TIMEOUT_SECONDS` - timeout for LLM requests.
+- `RAG_ENABLED_BY_DEFAULT` - enable Day22 RAG on every `/generate` request unless overridden.
+- `RAG_DEFAULT_STRATEGY` - default Day21 index strategy: `structure` or `fixed`.
+- `RAG_INDEX_FILE` - optional explicit FAISS index path for Day22 RAG.
+- `RAG_METADATA_FILE` - optional explicit chunks metadata path for Day22 RAG.
+- `RAG_EMBED_MODEL` - embedding model used for retrieval against the Day21 index.
+- `RAG_OLLAMA_URL` - Ollama base URL for embeddings.
+- `RAG_MAX_CHUNKS` - how many retrieved chunks to inject into the prompt.
 - `MCP_ENABLED_BY_DEFAULT` - enable MCP on every `/generate` request unless overridden.
 - `MCP_SERVER_SCRIPT` - single default MCP server script kept for backward compatibility.
 - `MCP_SERVER_SCRIPTS` - optional list of default MCP server scripts. Supports JSON array or `;`-separated paths.
 - `MCP_WAIT_AFTER_START_SECONDS` - optional delay after server start before the first tool call.
+
+Per-request Day22 RAG can be toggled through the `rag` field:
+
+```json
+{
+  "rag": {
+    "enabled": false
+  }
+}
+```
 
 ## MCP
 

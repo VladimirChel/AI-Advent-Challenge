@@ -24,6 +24,7 @@ from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServe
 from llm.service import validate_output
 from memory.models import MemoryPolicy
 from memory.orchestrator import build_agent_context, materialize_context_messages
+from rag.service import build_day22_rag_context, enforce_rag_response_contract, resolve_rag_settings
 from repositories.conversations import assert_conversation_access
 from repositories.chunks import add_memory_chunks
 from repositories.facts import extract_candidate_facts, upsert_facts
@@ -149,6 +150,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     assert_conversation_access(conversation_id=conversation_id, user_id=user_id)
 
     policy = MemoryPolicy()
+    rag_settings = resolve_rag_settings(payload.rag)
     agent_ctx = build_agent_context(
         user_id=user_id,
         conversation_id=conversation_id,
@@ -157,8 +159,13 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         policy=policy,
         live_messages=payload.messages,
     )
+    rag_question = "\n".join(m.content for m in payload.messages if m.role == "user").strip()
+    rag_result = build_day22_rag_context(rag_question, rag_settings)
 
-    full_messages = [*materialize_context_messages(agent_ctx), *payload.messages]
+    full_messages = [*materialize_context_messages(agent_ctx)]
+    if rag_result.context_message:
+        full_messages.append(rag_result.context_message)
+    full_messages.extend(payload.messages)
     mcp_settings = resolve_mcp_settings(payload)
 
     response, mcp_execution = call_chat_completion_with_mcp(
@@ -202,6 +209,8 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         )
         if not invariant_check.allowed:
             content = build_invariant_refusal(invariant_check)
+
+    content = enforce_rag_response_contract(content, rag_result)
 
     if payload.show_task_transition_in_chat and task_note and not task_transition_error:
         content = f"{content.rstrip()}\n\n{task_note}"
@@ -257,6 +266,10 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         long_term_summary_used=agent_ctx.long_term_summary is not None,
         retrieval_used=bool(agent_ctx.retrieved_items),
         retrieval_messages_used=len(agent_ctx.retrieved_items),
+        rag_used=bool(rag_result.chunks),
+        rag_chunks_used=len(rag_result.chunks or []),
+        rag_strategy=rag_result.strategy,
+        rag_chunks=rag_result.chunks or [],
         project_invariants_used=bool(invariants.invariants),
         project_invariants_count=len(invariants.invariants),
         invariant_check_passed=invariant_check.allowed,

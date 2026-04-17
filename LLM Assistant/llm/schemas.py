@@ -32,6 +32,20 @@ class MCPSettings(BaseModel):
     max_tool_roundtrips: int | None = Field(default=None, ge=1, le=10)
 
 
+class RAGSettings(BaseModel):
+    enabled: bool = False
+    strategy: Literal["fixed", "structure"] = "structure"
+    index_file: str | None = None
+    metadata_file: str | None = None
+    embed_model: str = Field(default="bge-m3", min_length=1, max_length=200)
+    ollama_url: str = Field(default="http://localhost:11434", min_length=1, max_length=500)
+    top_k: int = Field(default=5, ge=1, le=20)
+    min_relevance_score: float = Field(default=0.75, ge=0, le=10)
+    dense_search_enabled: bool = True
+    lexical_rerank_enabled: bool = True
+    lexical_fallback_enabled: bool = True
+
+
 class GenerateRequest(BaseModel):
     conversation_id: str | None = None
     branch_id: str = "main"
@@ -47,6 +61,17 @@ class GenerateRequest(BaseModel):
     validation: ResponseValidationRules | None = None
     show_task_transition_in_chat: bool = True
     mcp: MCPSettings | None = None
+    rag: RAGSettings | None = None
+
+
+class RAGChunkPayload(BaseModel):
+    rank: int
+    score: float
+    chunk_id: str
+    title: str = ""
+    source: str
+    section: str
+    text: str
 
 
 class TaskStatePayload(BaseModel):
@@ -94,6 +119,10 @@ class GenerateResponse(BaseModel):
     long_term_summary_used: bool = False
     retrieval_used: bool = False
     retrieval_messages_used: int = 0
+    rag_used: bool = False
+    rag_chunks_used: int = 0
+    rag_strategy: str | None = None
+    rag_chunks: list[RAGChunkPayload] = Field(default_factory=list)
 
     project_invariants_used: bool = False
     project_invariants_count: int = 0
