@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from llm.schemas import ChatMessage
@@ -16,6 +17,7 @@ def maybe_update_task_memory(
     conversation_id: str,
     branch_id: str,
     task_id: str | None,
+    chat_mode: str = "default",
     input_messages: list[ChatMessage],
     assistant_response: str,
 ) -> dict[str, Any]:
@@ -29,6 +31,15 @@ def maybe_update_task_memory(
     existing = get_task_memory(conversation_id, branch_id, task_id)
     task = existing or TaskMemory(task_id=task_id)
     task.task_state = _normalize_task_state(task.task_state)
+
+    if chat_mode == "rag_task_chat":
+        return _update_rag_task_chat_memory(
+            conversation_id=conversation_id,
+            branch_id=branch_id,
+            task=task,
+            input_messages=input_messages,
+            assistant_response=assistant_response,
+        )
 
     user_messages = [m.content.strip() for m in input_messages if m.role == "user" and m.content.strip()]
     if user_messages and not task.goal:
@@ -141,7 +152,77 @@ def build_task_transition_chat_note(task_update: dict[str, Any] | None) -> str:
     return ""
 
 
+def _update_rag_task_chat_memory(
+    *,
+    conversation_id: str,
+    branch_id: str,
+    task: TaskMemory,
+    input_messages: list[ChatMessage],
+    assistant_response: str,
+) -> dict[str, Any]:
+    user_messages = [m.content.strip() for m in input_messages if m.role == "user" and m.content.strip()]
+    if user_messages:
+        latest_user = user_messages[-1]
+        if not task.goal:
+            task.goal = latest_user[:1000]
+
+        task_state = _normalize_task_state(task.task_state)
+        if not task_state.get("dialog_goal"):
+            task_state["dialog_goal"] = task.goal or latest_user[:1000]
+
+        existing_points = [str(item).strip() for item in task_state.get("clarified_points", []) if str(item).strip()]
+        for message in user_messages:
+            if message not in existing_points:
+                existing_points.append(message)
+        task_state["clarified_points"] = existing_points[-12:]
+
+        existing_constraints = [str(item).strip() for item in task.constraints if str(item).strip()]
+        merged_constraints = _merge_unique(existing_constraints, _extract_constraints_from_messages(user_messages))
+        task.constraints = merged_constraints[-10:]
+        task_state["constraints"] = task.constraints
+
+        existing_terms = [str(item).strip() for item in task_state.get("fixed_terms", []) if str(item).strip()]
+        task_state["fixed_terms"] = _merge_unique(existing_terms, _extract_fixed_terms_from_messages(user_messages))[-12:]
+
+        task_state["last_user_message"] = latest_user[:1000]
+
+    task.stage = TaskStage.execution
+    task.status = TaskStatus.active
+    task.expected_action = ExpectedAction.user_reply
+    task.current_step = "Track the current dialog goal, constraints, and references"
+    task.blocked_reason = None
+    task.last_event = "task_memory_updated"
+    task.state_version += 1
+
+    open_questions = _extract_open_questions(assistant_response)
+    task.task_state = _normalize_task_state(task.task_state)
+    task.task_state.update(task_state if user_messages else {})
+    task.task_state["dialog_goal"] = task.task_state.get("dialog_goal") or task.goal
+    task.task_state["open_questions"] = open_questions
+    task.task_state["last_response_preview"] = assistant_response[:500]
+    task.task_state["waiting_for_user"] = True
+
+    if not task.plan:
+        task.plan = [
+            "Understand the user's goal",
+            "Retrieve relevant context through RAG",
+            "Answer with citations and keep task memory up to date",
+        ]
+
+    upsert_task_memory(conversation_id, branch_id, task)
+    return {
+        "task_state": _build_task_state_payload(task),
+        "task_transition": {
+            "applied": False,
+            "event": None,
+            "reason": "task_memory_updated",
+        },
+        "task_transition_error": None,
+    }
+
+
 def _build_task_state_payload(task: TaskMemory) -> dict[str, Any]:
+    task_state = task.task_state if isinstance(task.task_state, dict) else {}
     return {
         "task_id": task.task_id,
         "status": task.status.value if hasattr(task.status, "value") else str(task.status),
@@ -150,6 +231,11 @@ def _build_task_state_payload(task: TaskMemory) -> dict[str, Any]:
         "current_step": task.current_step,
         "blocked_reason": task.blocked_reason,
         "allowed_events": [event.value for event in get_allowed_task_events(task)],
+        "goal": task_state.get("dialog_goal") or task.goal,
+        "constraints": [str(item) for item in task.constraints],
+        "fixed_terms": [str(item) for item in task_state.get("fixed_terms", [])],
+        "clarified_points": [str(item) for item in task_state.get("clarified_points", [])],
+        "open_questions": [str(item) for item in task_state.get("open_questions", [])],
     }
 
 
@@ -420,6 +506,67 @@ def _looks_execution_work(response: str) -> bool:
     )
 
 
+def _merge_unique(existing: list[str], new_values: list[str]) -> list[str]:
+    merged: list[str] = []
+    for value in [*existing, *new_values]:
+        candidate = " ".join(str(value).split()).strip()
+        if candidate and candidate not in merged:
+            merged.append(candidate)
+    return merged
+
+
+def _extract_constraints_from_messages(messages: list[str]) -> list[str]:
+    results: list[str] = []
+    markers = (
+        "только",
+        "без ",
+        "нельзя",
+        "не использовать",
+        "не используй",
+        "ограничение",
+        "важно",
+        "обязательно",
+        "должен",
+        "нужно",
+    )
+    for message in messages:
+        normalized = " ".join(message.split())
+        lowered = normalized.lower()
+        if any(marker in lowered for marker in markers):
+            results.append(normalized[:240])
+    return results
+
+
+def _extract_fixed_terms_from_messages(messages: list[str]) -> list[str]:
+    terms: list[str] = []
+    for message in messages:
+        terms.extend(re.findall(r'"([^"\n]{2,80})"', message))
+        terms.extend(re.findall(r"'([^'\n]{2,80})'", message))
+        terms.extend(re.findall(r"\b[A-Z][A-Za-z0-9_\-]{1,40}\b", message))
+        terms.extend(re.findall(r"\b[А-ЯЁ][А-ЯЁа-яё0-9_\-]{2,40}\b", message))
+    cleaned: list[str] = []
+    for term in terms:
+        candidate = " ".join(str(term).split()).strip(" .,:;!?()[]{}")
+        if len(candidate) >= 3 and candidate not in cleaned:
+            cleaned.append(candidate)
+    return cleaned
+
+
+def _extract_open_questions(response: str) -> list[str]:
+    questions: list[str] = []
+    normalized = " ".join((response or "").split())
+    for match in re.findall(r"[^?]{3,200}\?", normalized):
+        candidate = match.strip()
+        if candidate and candidate not in questions:
+            questions.append(candidate)
+    if not questions:
+        lowered = normalized.lower()
+        prompts = ("уточните", "подтвердите", "какой", "какая", "нужен ли", "please clarify")
+        if any(prompt in lowered for prompt in prompts):
+            questions.append(normalized[:200] or "Assistant requested clarification.")
+    return questions[:5]
+
+
 def _normalize_task_state(task_state: dict[str, Any] | None) -> dict[str, Any]:
     state = dict(task_state or {})
     state.setdefault("plan_proposed", False)
@@ -427,4 +574,9 @@ def _normalize_task_state(task_state: dict[str, Any] | None) -> dict[str, Any]:
     state.setdefault("validation_requested", False)
     state.setdefault("validation_passed", False)
     state.setdefault("waiting_for_user", False)
+    state.setdefault("dialog_goal", "")
+    state.setdefault("fixed_terms", [])
+    state.setdefault("clarified_points", [])
+    state.setdefault("open_questions", [])
+    state.setdefault("constraints", [])
     return state

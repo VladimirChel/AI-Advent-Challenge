@@ -49,10 +49,17 @@ class LLMTesterApp(ctk.CTk):
         self.access_token: str | None = None
         self.current_user: dict[str, Any] | None = None
         self.history: list[dict[str, str]] = []
+        self.chat_transcript: list[dict[str, str]] = []
         self.last_raw_response: Any = None
         self.default_mcp_server_scripts = self._load_default_mcp_server_scripts()
+        self.session_state_path = Path(__file__).resolve().with_name("llm_gui_client_session.json")
+        self._session_restore_in_progress = False
+        self._session_save_after_id: str | None = None
 
         self._build_layout()
+        self._bind_session_persistence_hooks()
+        self._load_session_state()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(150, self._poll_queue)
 
     def _build_layout(self) -> None:
@@ -423,6 +430,7 @@ class LLMTesterApp(ctk.CTk):
 
     def _change_theme(self, value: str) -> None:
         ctk.set_appearance_mode(value)
+        self._schedule_session_save()
 
     def _send_hotkey(self, _event: Any) -> str:
         self.send_message()
@@ -432,11 +440,13 @@ class LLMTesterApp(ctk.CTk):
         self.status_label.configure(text=f"Status: {text}")
 
     def append_chat(self, role: str, text: str) -> None:
+        self.chat_transcript.append({"role": role, "content": text})
         ts = datetime.now().strftime("%H:%M:%S")
         self.chat_box.configure(state="normal")
         self.chat_box.insert("end", f"[{ts}] {role}\n{text}\n\n")
         self.chat_box.see("end")
         self.chat_box.configure(state="disabled")
+        self._schedule_session_save()
 
     def _set_textbox(self, widget: ctk.CTkTextbox, text: str) -> None:
         widget.configure(state="normal")
@@ -509,6 +519,7 @@ class LLMTesterApp(ctk.CTk):
             self.token_preview_var.set(f"{user.get('email')} | {preview}")
         else:
             self.token_preview_var.set("not authenticated")
+        self._schedule_session_save()
 
     def _update_model_values(self, values: list[str]) -> None:
         cleaned = [value for value in values if value]
@@ -517,35 +528,43 @@ class LLMTesterApp(ctk.CTk):
         self.model_values = cleaned
         if self.model_var.get() not in self.model_values:
             self.model_var.set(self.model_values[0])
+        self._schedule_session_save()
 
     def _reset_request_context(self) -> None:
         self.session.close()
         self.session = requests.Session()
         self.history.clear()
+        self.chat_transcript.clear()
         self.last_raw_response = None
         self.conversation_id_var.set(str(uuid.uuid4()))
         self._update_mcp_panels(None)
+        self._render_chat_transcript()
+        self._schedule_session_save()
 
     def new_conversation(self) -> None:
         self.conversation_id_var.set(str(uuid.uuid4()))
         self.history.clear()
         self._update_mcp_panels(None)
+        self.chat_transcript.clear()
+        self._render_chat_transcript()
         self.append_chat("system", f"New conversation: {self.conversation_id_var.get()}")
         self.set_status("new conversation created")
+        self._schedule_session_save()
 
     def clear_chat(self) -> None:
-        self.chat_box.configure(state="normal")
-        self.chat_box.delete("1.0", "end")
-        self.chat_box.configure(state="disabled")
         self.history.clear()
+        self.chat_transcript.clear()
         self.last_raw_response = None
         self._update_mcp_panels(None)
+        self._render_chat_transcript()
         self.set_status("chat cleared")
+        self._schedule_session_save()
 
     def logout(self) -> None:
         self._reset_request_context()
         self._set_auth_state(None, None)
         self.set_status("logged out")
+        self._schedule_session_save()
 
     def copy_token(self) -> None:
         if not self.access_token:
@@ -725,6 +744,7 @@ class LLMTesterApp(ctk.CTk):
         self.append_chat("user", user_message)
         self.message_input.delete("1.0", "end")
         self.set_status("sending request")
+        self._schedule_session_save()
 
         self._run_request(
             name="generate",
@@ -869,6 +889,7 @@ class LLMTesterApp(ctk.CTk):
             else:
                 self.append_chat("error", self._format_error(result))
                 self.set_status("health failed")
+            self._schedule_session_save()
             return
 
         if name in {"login", "register"}:
@@ -884,11 +905,13 @@ class LLMTesterApp(ctk.CTk):
                         f"New conversation: {self.conversation_id_var.get()}",
                     )
                     self.set_status(f"{name} successful")
+                    self._schedule_session_save()
                     self.fetch_models()
                     return
 
             self.append_chat("error", self._format_error(result))
             self.set_status(f"{name} failed")
+            self._schedule_session_save()
             return
 
         if name == "me":
@@ -900,6 +923,7 @@ class LLMTesterApp(ctk.CTk):
             else:
                 self.append_chat("error", self._format_error(result))
                 self.set_status("failed to load user")
+            self._schedule_session_save()
             return
 
         if name == "models":
@@ -913,10 +937,12 @@ class LLMTesterApp(ctk.CTk):
                     ]
                     self._update_model_values(models)
                     self.set_status(f"models loaded: {len(self.model_values)}")
+                    self._schedule_session_save()
                     return
 
             self.append_chat("error", self._format_error(result))
             self.set_status("failed to load models")
+            self._schedule_session_save()
             return
 
         if name == "generate":
@@ -934,6 +960,7 @@ class LLMTesterApp(ctk.CTk):
             else:
                 self.append_chat("error", self._format_error(result))
                 self.set_status("request failed")
+            self._schedule_session_save()
 
     def _update_mcp_panels(self, body: Any) -> None:
         if not isinstance(body, dict) or not body.get("mcp_used"):
@@ -1047,6 +1074,187 @@ class LLMTesterApp(ctk.CTk):
         if isinstance(body, (dict, list)):
             return json.dumps(body, ensure_ascii=False, indent=2)
         return str(body)
+
+    def _bind_session_persistence_hooks(self) -> None:
+        tracked_vars = (
+            self.base_url_var,
+            self.theme_var,
+            self.timeout_var,
+            self.email_var,
+            self.register_email_var,
+            self.model_var,
+            self.branch_id_var,
+            self.task_id_var,
+            self.conversation_id_var,
+            self.include_history_var,
+            self.require_json_var,
+            self.show_task_transition_in_chat_var,
+            self.enable_mcp_var,
+            self.enable_rag_var,
+        )
+        for variable in tracked_vars:
+            variable.trace_add("write", self._on_session_var_changed)
+
+        self.message_input.bind("<KeyRelease>", self._on_session_widget_changed, add="+")
+        self.mcp_servers_input.bind("<KeyRelease>", self._on_session_widget_changed, add="+")
+
+    def _on_session_var_changed(self, *_args: Any) -> None:
+        self._schedule_session_save()
+
+    def _on_session_widget_changed(self, _event: Any) -> None:
+        self._schedule_session_save()
+
+    def _schedule_session_save(self) -> None:
+        if self._session_restore_in_progress:
+            return
+        if self._session_save_after_id is not None:
+            self.after_cancel(self._session_save_after_id)
+        self._session_save_after_id = self.after(250, self._save_session_state)
+
+    def _collect_session_state(self) -> dict[str, Any]:
+        return {
+            "base_url": self.base_url_var.get(),
+            "theme": self.theme_var.get(),
+            "timeout": self.timeout_var.get(),
+            "email": self.email_var.get(),
+            "register_email": self.register_email_var.get(),
+            "model": self.model_var.get(),
+            "model_values": self.model_values,
+            "branch_id": self.branch_id_var.get(),
+            "task_id": self.task_id_var.get(),
+            "conversation_id": self.conversation_id_var.get(),
+            "include_history": self.include_history_var.get(),
+            "require_json": self.require_json_var.get(),
+            "show_task_transition_in_chat": self.show_task_transition_in_chat_var.get(),
+            "enable_mcp": self.enable_mcp_var.get(),
+            "enable_rag": self.enable_rag_var.get(),
+            "access_token": self.access_token,
+            "current_user": self.current_user,
+            "history": self.history,
+            "chat_transcript": self.chat_transcript,
+            "message_draft": self.message_input.get("1.0", "end").strip(),
+            "mcp_server_scripts": [item.get("server_script") for item in self._collect_mcp_servers()],
+        }
+
+    def _save_session_state(self) -> None:
+        self._session_save_after_id = None
+        if self._session_restore_in_progress:
+            return
+        try:
+            self.session_state_path.write_text(
+                json.dumps(self._collect_session_state(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError:
+            return
+
+    def _load_session_state(self) -> None:
+        if not self.session_state_path.exists():
+            return
+
+        try:
+            raw_state = json.loads(self.session_state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        if not isinstance(raw_state, dict):
+            return
+
+        self._session_restore_in_progress = True
+        try:
+            self.base_url_var.set(str(raw_state.get("base_url") or self.base_url_var.get()))
+            self.theme_var.set(str(raw_state.get("theme") or self.theme_var.get()))
+            ctk.set_appearance_mode(self.theme_var.get())
+            self.timeout_var.set(str(raw_state.get("timeout") or self.timeout_var.get()))
+            self.email_var.set(str(raw_state.get("email") or ""))
+            self.register_email_var.set(str(raw_state.get("register_email") or ""))
+            self.model_var.set(str(raw_state.get("model") or self.model_var.get()))
+
+            model_values = raw_state.get("model_values")
+            if isinstance(model_values, list):
+                self._update_model_values([str(item) for item in model_values if str(item).strip()])
+
+            self.branch_id_var.set(str(raw_state.get("branch_id") or self.branch_id_var.get()))
+            self.task_id_var.set(str(raw_state.get("task_id") or ""))
+            self.conversation_id_var.set(
+                str(raw_state.get("conversation_id") or self.conversation_id_var.get())
+            )
+            self.include_history_var.set(bool(raw_state.get("include_history", self.include_history_var.get())))
+            self.require_json_var.set(bool(raw_state.get("require_json", self.require_json_var.get())))
+            self.show_task_transition_in_chat_var.set(
+                bool(
+                    raw_state.get(
+                        "show_task_transition_in_chat",
+                        self.show_task_transition_in_chat_var.get(),
+                    )
+                )
+            )
+            self.enable_mcp_var.set(bool(raw_state.get("enable_mcp", self.enable_mcp_var.get())))
+            self.enable_rag_var.set(bool(raw_state.get("enable_rag", self.enable_rag_var.get())))
+
+            token = raw_state.get("access_token")
+            user = raw_state.get("current_user")
+            if isinstance(token, str) and isinstance(user, dict):
+                self._set_auth_state(token, user)
+
+            history = raw_state.get("history")
+            if isinstance(history, list):
+                self.history = [
+                    {"role": str(item.get("role") or "system"), "content": str(item.get("content") or "")}
+                    for item in history
+                    if isinstance(item, dict)
+                ]
+            else:
+                self.history = []
+
+            transcript = raw_state.get("chat_transcript")
+            if isinstance(transcript, list):
+                self.chat_transcript = [
+                    {"role": str(item.get("role") or "system"), "content": str(item.get("content") or "")}
+                    for item in transcript
+                    if isinstance(item, dict)
+                ]
+            else:
+                self.chat_transcript = [
+                    {"role": item["role"], "content": item["content"]}
+                    for item in self.history
+                    if isinstance(item, dict)
+                    and isinstance(item.get("role"), str)
+                    and isinstance(item.get("content"), str)
+                ]
+            self._render_chat_transcript()
+
+            scripts = raw_state.get("mcp_server_scripts")
+            if isinstance(scripts, list):
+                cleaned_scripts = [str(item).strip() for item in scripts if str(item).strip()]
+                self.mcp_servers_input.delete("1.0", "end")
+                self.mcp_servers_input.insert(
+                    "1.0",
+                    "\n".join(cleaned_scripts or self.default_mcp_server_scripts),
+                )
+
+            message_draft = str(raw_state.get("message_draft") or "")
+            if message_draft:
+                self.message_input.delete("1.0", "end")
+                self.message_input.insert("1.0", message_draft)
+        finally:
+            self._session_restore_in_progress = False
+
+    def _render_chat_transcript(self) -> None:
+        self.chat_box.configure(state="normal")
+        self.chat_box.delete("1.0", "end")
+        for item in self.chat_transcript:
+            role = str(item.get("role") or "system")
+            content = str(item.get("content") or "")
+            self.chat_box.insert("end", f"{role}\n{content}\n\n")
+        self.chat_box.see("end")
+        self.chat_box.configure(state="disabled")
+
+    def _on_close(self) -> None:
+        if self._session_save_after_id is not None:
+            self.after_cancel(self._session_save_after_id)
+            self._session_save_after_id = None
+        self._save_session_state()
+        self.destroy()
 
 
 if __name__ == "__main__":

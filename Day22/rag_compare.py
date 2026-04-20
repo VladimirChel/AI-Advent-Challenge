@@ -38,6 +38,7 @@ class RetrievalCandidate:
     source: str
     section: str
     dense_score: float | None = None
+    phrase_score: float | None = None
     lexical_rerank_score: float | None = None
     lexical_fallback_score: float | None = None
     final_score: float | None = None
@@ -53,6 +54,7 @@ class RetrievalDebugInfo:
     lexical_fallback_enabled: bool
     dense_candidates: list[RetrievalCandidate]
     reranked_candidates: list[RetrievalCandidate]
+    phrase_candidates: list[RetrievalCandidate]
     fallback_candidates: list[RetrievalCandidate]
     final_candidates: list[RetrievalCandidate]
 
@@ -88,6 +90,39 @@ RUSSIAN_STOPWORDS = {
     "где",
     "когда",
 }
+
+
+RUSSIAN_STOPWORDS = {
+    "как",
+    "включить",
+    "включается",
+    "подключить",
+    "мне",
+    "нужно",
+    "надо",
+    "подскажи",
+    "подскажите",
+    "покажи",
+    "покажите",
+    "расскажи",
+    "расскажите",
+    "найти",
+    "ищу",
+    "нужен",
+    "нужна",
+    "нужны",
+    "ли",
+    "в",
+    "на",
+    "по",
+    "для",
+    "и",
+    "или",
+    "что",
+    "где",
+    "когда",
+}
+RUSSIAN_STOPWORDS.discard("подключить")
 
 
 def configure_stdio() -> None:
@@ -241,8 +276,9 @@ def retrieve_chunks(
     items = metadata["items"]
 
     index = faiss.read_index(str(index_file))
-    candidate_scores: dict[int, float] = {}
     dense_scores: dict[int, float] = {}
+    dense_reranked_scores: dict[int, float] = {}
+    phrase_scores: dict[int, float] = {}
     lexical_rerank_scores: dict[int, float] = {}
     fallback_scores: dict[int, float] = {}
     query_variants = build_query_variants(question)
@@ -275,9 +311,14 @@ def retrieve_chunks(
                         lexical_rerank_scores[idx] = lexical_score
                     reranked_score += lexical_score
 
-                previous = candidate_scores.get(idx)
+                previous = dense_reranked_scores.get(idx)
                 if previous is None or reranked_score > previous:
-                    candidate_scores[idx] = reranked_score
+                    dense_reranked_scores[idx] = reranked_score
+
+    for idx, raw_item in enumerate(items):
+        phrase_score = max(phrase_match_score(query_variant, raw_item) for query_variant in query_variants)
+        if phrase_score > 0:
+            phrase_scores[idx] = phrase_score
 
     if enable_lexical_fallback:
         for idx, raw_item in enumerate(items):
@@ -290,10 +331,14 @@ def retrieve_chunks(
             previous_fallback = fallback_scores.get(idx)
             if previous_fallback is None or fallback_score > previous_fallback:
                 fallback_scores[idx] = fallback_score
-            previous = candidate_scores.get(idx)
-            if previous is None or fallback_score > previous:
-                candidate_scores[idx] = fallback_score
 
+    candidate_scores = reciprocal_rank_fuse(
+        [
+            (dense_reranked_scores, 1.0 if enable_dense_search else 0.0),
+            (phrase_scores, 2.5),
+            (fallback_scores, 0.9 if enable_lexical_fallback else 0.0),
+        ]
+    )
     ranked_indices = sorted(candidate_scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
 
     if debug_info is not None:
@@ -307,22 +352,34 @@ def retrieve_chunks(
             items=items,
             final_scores=dense_scores,
             dense_scores=dense_scores,
+            phrase_scores={},
             lexical_rerank_scores=lexical_rerank_scores,
             fallback_scores={},
             limit=search_depth,
         )
         debug_info.reranked_candidates = build_debug_candidates(
             items=items,
-            final_scores=candidate_scores if enable_lexical_rerank else dense_scores,
+            final_scores=dense_reranked_scores if enable_lexical_rerank else dense_scores,
             dense_scores=dense_scores,
+            phrase_scores={},
             lexical_rerank_scores=lexical_rerank_scores,
             fallback_scores={},
             limit=search_depth,
+        )
+        debug_info.phrase_candidates = build_debug_candidates(
+            items=items,
+            final_scores=phrase_scores,
+            dense_scores={},
+            phrase_scores=phrase_scores,
+            lexical_rerank_scores={},
+            fallback_scores={},
+            limit=max(top_k * 3, 10),
         )
         debug_info.fallback_candidates = build_debug_candidates(
             items=items,
             final_scores=fallback_scores,
             dense_scores={},
+            phrase_scores={},
             lexical_rerank_scores={},
             fallback_scores=fallback_scores,
             limit=max(top_k * 3, 10),
@@ -331,6 +388,7 @@ def retrieve_chunks(
             items=items,
             final_scores=dict(ranked_indices),
             dense_scores=dense_scores,
+            phrase_scores=phrase_scores,
             lexical_rerank_scores=lexical_rerank_scores,
             fallback_scores=fallback_scores,
             limit=top_k,
@@ -415,6 +473,7 @@ def build_debug_candidates(
     items: list[dict[str, Any]],
     final_scores: dict[int, float],
     dense_scores: dict[int, float],
+    phrase_scores: dict[int, float],
     lexical_rerank_scores: dict[int, float],
     fallback_scores: dict[int, float],
     limit: int,
@@ -431,6 +490,7 @@ def build_debug_candidates(
                 source=str(chunk.get("source", "")),
                 section=str(chunk.get("section", "")),
                 dense_score=dense_scores.get(idx),
+                phrase_score=phrase_scores.get(idx),
                 lexical_rerank_score=lexical_rerank_scores.get(idx),
                 lexical_fallback_score=fallback_scores.get(idx),
                 final_score=float(final_score),
@@ -531,6 +591,7 @@ def count_token_matches(query_tokens: list[str], haystack: str) -> tuple[int, in
 
 def lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
     chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+    text_haystack = str(chunk.get("text", "")).lower()
     title_source_haystack = " ".join(
         [
             str(chunk.get("title", "")).lower(),
@@ -542,7 +603,7 @@ def lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
         [
             title_source_haystack,
             str(chunk.get("section", "")).lower(),
-            str(chunk.get("text", "")).lower(),
+            text_haystack,
         ]
     )
     tokens = [token for token in re.findall(r"[\w=.\-]+", query.lower(), flags=re.UNICODE) if token]
@@ -563,6 +624,195 @@ def lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
     elif total_title_matches >= max(2, len(normalized_tokens) - 1):
         phrase_bonus += 0.6
 
+    score = (
+        matched_full * 0.03
+        + fuzzy_full * 0.02
+        + matched_title_source * 0.16
+        + fuzzy_title_source * 0.12
+        + phrase_bonus
+    )
+    if "оглавление" in text_haystack or len(re.findall(r"\.{4,}", text_haystack)) >= 2:
+        score -= 1.0
+    return score
+
+
+def normalize_match_token(token: str) -> str:
+    normalized = token.lower().replace("ё", "е")
+    normalized = re.sub(r"(.)\1+", r"\1", normalized)
+    for suffix in (
+        "ирования",
+        "ирование",
+        "ирован",
+        "ениями",
+        "ением",
+        "ению",
+        "ениях",
+        "ение",
+        "ения",
+        "ений",
+        "ировать",
+        "аться",
+        "яться",
+        "иться",
+        "ывать",
+        "овать",
+        "ить",
+        "ать",
+        "ять",
+        "иями",
+        "ями",
+        "ами",
+        "ого",
+        "его",
+        "ому",
+        "ему",
+        "ыми",
+        "ими",
+        "иях",
+        "ах",
+        "ях",
+        "ия",
+        "ья",
+        "ов",
+        "ев",
+        "ом",
+        "ем",
+        "ой",
+        "ей",
+        "ам",
+        "ям",
+        "ый",
+        "ий",
+        "ая",
+        "яя",
+        "ое",
+        "ее",
+        "ы",
+        "и",
+        "а",
+        "я",
+        "е",
+        "о",
+        "у",
+        "ю",
+        "ь",
+    ):
+        if len(normalized) > len(suffix) + 2 and normalized.endswith(suffix):
+            normalized = normalized[: -len(suffix)]
+            break
+    return normalized
+
+
+def query_tokens(query: str) -> list[str]:
+    return [
+        normalize_match_token(token)
+        for token in re.findall(r"[\w=.\-]+", query.lower(), flags=re.UNICODE)
+        if token
+    ]
+
+
+def tokens_compatible(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    if len(left) >= 5 and len(right) >= 5:
+        prefix_len = 0
+        for left_ch, right_ch in zip(left, right):
+            if left_ch != right_ch:
+                break
+            prefix_len += 1
+        if prefix_len >= 5:
+            return True
+    return token_distance_leq_one(left, right)
+
+
+def count_ordered_phrase_matches(query_tokens: list[str], haystack: str) -> tuple[int, bool]:
+    haystack_tokens = [
+        normalize_match_token(token)
+        for token in re.findall(r"[\w=.\-]+", haystack.lower(), flags=re.UNICODE)
+        if token
+    ]
+    if not query_tokens or not haystack_tokens:
+        return 0, False
+
+    best_span = 0
+    contiguous = False
+    for start_idx, hay_token in enumerate(haystack_tokens):
+        if not tokens_compatible(query_tokens[0], hay_token):
+            continue
+        matched = 1
+        last_idx = start_idx
+        local_contiguous = True
+        for query_idx in range(1, len(query_tokens)):
+            next_idx = None
+            for candidate_idx in range(last_idx + 1, min(len(haystack_tokens), last_idx + 4)):
+                if tokens_compatible(query_tokens[query_idx], haystack_tokens[candidate_idx]):
+                    next_idx = candidate_idx
+                    if candidate_idx != last_idx + 1:
+                        local_contiguous = False
+                    break
+            if next_idx is None:
+                break
+            matched += 1
+            last_idx = next_idx
+        if matched > best_span:
+            best_span = matched
+        if matched == len(query_tokens) and local_contiguous:
+            contiguous = True
+            best_span = matched
+            break
+    return best_span, contiguous
+
+
+def lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
+    chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+    title_source_haystack = " ".join(
+        [
+            str(chunk.get("title", "")).lower(),
+            Path(str(chunk.get("source", ""))).name.lower(),
+            str(chunk.get("section", "")).lower(),
+        ]
+    )
+    full_haystack = " ".join(
+        [
+            title_source_haystack,
+            str(chunk.get("section", "")).lower(),
+            str(chunk.get("text", "")).lower(),
+        ]
+    )
+    normalized_tokens = query_tokens(query)
+    if not normalized_tokens:
+        return 0.0
+
+    matched_full, fuzzy_full = count_token_matches(normalized_tokens, full_haystack)
+    matched_title_source, fuzzy_title_source = count_token_matches(normalized_tokens, title_source_haystack)
+    ordered_title_matches, contiguous_title_match = count_ordered_phrase_matches(
+        normalized_tokens,
+        title_source_haystack,
+    )
+    ordered_full_matches, contiguous_full_match = count_ordered_phrase_matches(
+        normalized_tokens,
+        full_haystack,
+    )
+
+    phrase_bonus = 0.0
+    if contiguous_title_match:
+        phrase_bonus += 2.0
+    elif ordered_title_matches == len(normalized_tokens):
+        phrase_bonus += 1.4
+    elif ordered_title_matches >= max(2, len(normalized_tokens) - 1):
+        phrase_bonus += 0.8
+
+    if contiguous_full_match:
+        phrase_bonus += 1.1
+    elif ordered_full_matches == len(normalized_tokens):
+        phrase_bonus += 0.7
+
+    total_title_matches = matched_title_source + fuzzy_title_source
+    if total_title_matches == len(normalized_tokens):
+        phrase_bonus += 1.0
+    elif total_title_matches >= max(2, len(normalized_tokens) - 1):
+        phrase_bonus += 0.6
+
     return (
         matched_full * 0.03
         + fuzzy_full * 0.02
@@ -570,6 +820,84 @@ def lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
         + fuzzy_title_source * 0.12
         + phrase_bonus
     )
+
+
+def phrase_match_score(query: str, raw_item: dict[str, Any]) -> float:
+    chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+    title = str(chunk.get("title", "")).lower()
+    source_name = Path(str(chunk.get("source", ""))).name.lower()
+    section = str(chunk.get("section", "")).lower()
+    text = str(chunk.get("text", "")).lower()
+    title_source_haystack = " ".join([title, source_name, section])
+    full_haystack = " ".join([title_source_haystack, text])
+    normalized_query_tokens = query_tokens(query)
+    if not normalized_query_tokens:
+        return 0.0
+
+    ordered_title_matches, contiguous_title_match = count_ordered_phrase_matches(
+        normalized_query_tokens,
+        title_source_haystack,
+    )
+    ordered_full_matches, contiguous_full_match = count_ordered_phrase_matches(
+        normalized_query_tokens,
+        full_haystack,
+    )
+    exact_title_matches, fuzzy_title_matches = count_token_matches(
+        normalized_query_tokens,
+        title_source_haystack,
+    )
+    exact_full_matches, fuzzy_full_matches = count_token_matches(
+        normalized_query_tokens,
+        full_haystack,
+    )
+    leading_haystack = full_haystack[:450]
+    leading_ordered_matches, leading_contiguous_match = count_ordered_phrase_matches(
+        normalized_query_tokens,
+        leading_haystack,
+    )
+
+    score = 0.0
+    if contiguous_title_match:
+        score += 8.0
+    elif ordered_title_matches == len(normalized_query_tokens):
+        score += 6.0
+    elif ordered_title_matches >= max(2, len(normalized_query_tokens) - 1):
+        score += 4.0
+
+    if contiguous_full_match:
+        score += 3.0
+    elif ordered_full_matches == len(normalized_query_tokens):
+        score += 2.2
+    elif ordered_full_matches >= max(2, len(normalized_query_tokens) - 1):
+        score += 1.2
+
+    if leading_contiguous_match:
+        score += 2.2
+    elif leading_ordered_matches == len(normalized_query_tokens):
+        score += 1.4
+
+    score += exact_title_matches * 0.7
+    score += fuzzy_title_matches * 0.35
+    score += exact_full_matches * 0.15
+    score += fuzzy_full_matches * 0.08
+
+    if "оглавление" in text or len(re.findall(r"\.{4,}", text)) >= 2:
+        score -= 2.5
+
+    return score
+
+
+def reciprocal_rank_fuse(
+    score_maps: list[tuple[dict[int, float], float]],
+    *,
+    rank_constant: int = 60,
+) -> dict[int, float]:
+    fused_scores: dict[int, float] = {}
+    for score_map, weight in score_maps:
+        ranked = sorted(score_map.items(), key=lambda item: item[1], reverse=True)
+        for rank, (idx, _score) in enumerate(ranked, start=1):
+            fused_scores[idx] = fused_scores.get(idx, 0.0) + weight / (rank_constant + rank)
+    return fused_scores
 
 
 def resolve_retrieval_files(strategy: str, index_file: str, metadata_file: str) -> tuple[Path, Path]:
@@ -725,6 +1053,7 @@ def print_candidate_table(title: str, candidates: list[RetrievalCandidate]) -> N
         print(
             f"{rank}. final={format_optional_score(candidate.final_score)} "
             f"dense={format_optional_score(candidate.dense_score)} "
+            f"phrase={format_optional_score(candidate.phrase_score)} "
             f"rerank={format_optional_score(candidate.lexical_rerank_score)} "
             f"fallback={format_optional_score(candidate.lexical_fallback_score)}"
         )
@@ -760,6 +1089,7 @@ def print_retrieval_debug_info(debug_info: RetrievalDebugInfo) -> None:
 
     print_candidate_table("Dense stage candidates:", debug_info.dense_candidates)
     print_candidate_table("After lexical rerank:", debug_info.reranked_candidates)
+    print_candidate_table("Phrase stage candidates:", debug_info.phrase_candidates)
     print_candidate_table("Lexical fallback candidates:", debug_info.fallback_candidates)
     print_candidate_table("Final top-k:", debug_info.final_candidates)
 
@@ -786,6 +1116,7 @@ def main() -> int:
         lexical_fallback_enabled=not args.disable_lexical_fallback,
         dense_candidates=[],
         reranked_candidates=[],
+        phrase_candidates=[],
         fallback_candidates=[],
         final_candidates=[],
     )

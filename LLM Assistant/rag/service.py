@@ -22,11 +22,42 @@ from config import (
     RAG_MIN_RELEVANCE_SCORE,
     RAG_OLLAMA_URL,
 )
-from llm.schemas import ChatMessage, RAGChunkPayload, RAGSettings
+from llm.schemas import ChatMessage, CitationPayload, RAGChunkPayload, RAGSettings, SourcePayload
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DAY21_DIR = ROOT_DIR.parent / "Day21"
+
+RUSSIAN_STOPWORDS = {
+    "как",
+    "включить",
+    "включается",
+    "мне",
+    "нужно",
+    "надо",
+    "подскажи",
+    "подскажите",
+    "покажи",
+    "покажите",
+    "расскажи",
+    "расскажите",
+    "найти",
+    "ищу",
+    "нужен",
+    "нужна",
+    "нужны",
+    "ли",
+    "в",
+    "на",
+    "по",
+    "для",
+    "и",
+    "или",
+    "что",
+    "где",
+    "когда",
+}
+
 
 RUSSIAN_STOPWORDS = {
     "как",
@@ -100,6 +131,54 @@ def resolve_rag_settings(payload_rag: RAGSettings | None) -> RAGSettings | None:
         lexical_rerank_enabled=RAG_LEXICAL_RERANK_ENABLED,
         lexical_fallback_enabled=RAG_LEXICAL_FALLBACK_ENABLED,
     )
+
+
+def build_task_aware_rag_query(question: str, task_memory: Any | None) -> str:
+    normalized_question = " ".join((question or "").split()).strip()
+    if not task_memory:
+        return normalized_question
+
+    task_state = task_memory.task_state if isinstance(getattr(task_memory, "task_state", None), dict) else {}
+    parts = [normalized_question]
+
+    dialog_goal = str(task_state.get("dialog_goal", "") or getattr(task_memory, "goal", "") or "").strip()
+    if dialog_goal and dialog_goal != normalized_question:
+        parts.append(f"Goal: {dialog_goal}")
+
+    constraints = [str(item).strip() for item in getattr(task_memory, "constraints", []) if str(item).strip()]
+    if constraints:
+        parts.append("Constraints: " + "; ".join(constraints[:5]))
+
+    fixed_terms = [str(item).strip() for item in task_state.get("fixed_terms", []) if str(item).strip()]
+    if fixed_terms:
+        parts.append("Terms: " + ", ".join(fixed_terms[:8]))
+
+    return "\n".join(part for part in parts if part).strip()
+
+
+def build_rag_sources(chunks: list[RAGChunkPayload]) -> list[SourcePayload]:
+    sources: list[SourcePayload] = []
+    seen: set[tuple[str, str, str]] = set()
+    for chunk in chunks:
+        key = (chunk.source, chunk.section, chunk.chunk_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append(SourcePayload(source=chunk.source, section=chunk.section, chunk_id=chunk.chunk_id))
+    return sources
+
+
+def build_rag_citations(chunks: list[RAGChunkPayload]) -> list[CitationPayload]:
+    return [
+        CitationPayload(
+            source=chunk.source,
+            section=chunk.section,
+            chunk_id=chunk.chunk_id,
+            quote=_build_quote_snippet(chunk.text),
+            score=chunk.score,
+        )
+        for chunk in chunks
+    ]
 
 
 def build_day22_rag_context(question: str, settings: RAGSettings | None) -> Day22RAGResult:
@@ -264,7 +343,7 @@ def _retrieve_chunks(
         results.append(
             _RetrievedChunk(
                 rank=rank,
-                score=float(score),
+                score=float(score * 100),
                 chunk_id=str(chunk.get("chunk_id", "")),
                 title=str(chunk.get("title", "")),
                 source=str(chunk.get("source", "")),
@@ -454,6 +533,387 @@ def _lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
         + fuzzy_title_source * 0.12
         + phrase_bonus
     )
+
+
+def _query_tokens(query: str) -> list[str]:
+    return [
+        _normalize_match_token(token)
+        for token in re.findall(r"[\w=.\-]+", query.lower(), flags=re.UNICODE)
+        if token
+    ]
+
+
+def _tokens_compatible(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    if len(left) >= 5 and len(right) >= 5:
+        prefix_len = 0
+        for left_ch, right_ch in zip(left, right):
+            if left_ch != right_ch:
+                break
+            prefix_len += 1
+        if prefix_len >= 5:
+            return True
+    return _token_distance_leq_one(left, right)
+
+
+def _count_ordered_phrase_matches(query_tokens: list[str], haystack: str) -> tuple[int, bool]:
+    haystack_tokens = [
+        _normalize_match_token(token)
+        for token in re.findall(r"[\w=.\-]+", haystack.lower(), flags=re.UNICODE)
+        if token
+    ]
+    if not query_tokens or not haystack_tokens:
+        return 0, False
+
+    best_span = 0
+    contiguous = False
+    for start_idx, hay_token in enumerate(haystack_tokens):
+        if not _tokens_compatible(query_tokens[0], hay_token):
+            continue
+        matched = 1
+        last_idx = start_idx
+        local_contiguous = True
+        for query_idx in range(1, len(query_tokens)):
+            next_idx = None
+            for candidate_idx in range(last_idx + 1, min(len(haystack_tokens), last_idx + 4)):
+                if _tokens_compatible(query_tokens[query_idx], haystack_tokens[candidate_idx]):
+                    next_idx = candidate_idx
+                    if candidate_idx != last_idx + 1:
+                        local_contiguous = False
+                    break
+            if next_idx is None:
+                break
+            matched += 1
+            last_idx = next_idx
+        if matched > best_span:
+            best_span = matched
+        if matched == len(query_tokens) and local_contiguous:
+            contiguous = True
+            best_span = matched
+            break
+    return best_span, contiguous
+
+
+def _normalize_match_token(token: str) -> str:
+    normalized = token.lower().replace("ё", "е")
+    normalized = re.sub(r"(.)\1+", r"\1", normalized)
+    for suffix in (
+        "ирования",
+        "ирование",
+        "ирован",
+        "ениями",
+        "ением",
+        "ению",
+        "ениях",
+        "ение",
+        "ения",
+        "ений",
+        "ировать",
+        "аться",
+        "яться",
+        "иться",
+        "ывать",
+        "овать",
+        "ить",
+        "ать",
+        "ять",
+        "иями",
+        "ями",
+        "ами",
+        "ого",
+        "его",
+        "ому",
+        "ему",
+        "ыми",
+        "ими",
+        "иях",
+        "ах",
+        "ях",
+        "ия",
+        "ья",
+        "ов",
+        "ев",
+        "ом",
+        "ем",
+        "ой",
+        "ей",
+        "ам",
+        "ям",
+        "ый",
+        "ий",
+        "ая",
+        "яя",
+        "ое",
+        "ее",
+        "ы",
+        "и",
+        "а",
+        "я",
+        "е",
+        "о",
+        "у",
+        "ю",
+        "ь",
+    ):
+        if len(normalized) > len(suffix) + 2 and normalized.endswith(suffix):
+            normalized = normalized[: -len(suffix)]
+            break
+    return normalized
+
+
+def _lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
+    chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+    text_haystack = str(chunk.get("text", "")).lower()
+    title_source_haystack = " ".join(
+        [
+            str(chunk.get("title", "")).lower(),
+            Path(str(chunk.get("source", ""))).name.lower(),
+            str(chunk.get("section", "")).lower(),
+        ]
+    )
+    full_haystack = " ".join([title_source_haystack, str(chunk.get("section", "")).lower(), text_haystack])
+    normalized_tokens = _query_tokens(query)
+    if not normalized_tokens:
+        return 0.0
+
+    matched_full, fuzzy_full = _count_token_matches(normalized_tokens, full_haystack)
+    matched_title_source, fuzzy_title_source = _count_token_matches(normalized_tokens, title_source_haystack)
+    ordered_title_matches, contiguous_title_match = _count_ordered_phrase_matches(normalized_tokens, title_source_haystack)
+    ordered_full_matches, contiguous_full_match = _count_ordered_phrase_matches(normalized_tokens, full_haystack)
+
+    phrase_bonus = 0.0
+    if contiguous_title_match:
+        phrase_bonus += 2.0
+    elif ordered_title_matches == len(normalized_tokens):
+        phrase_bonus += 1.4
+    elif ordered_title_matches >= max(2, len(normalized_tokens) - 1):
+        phrase_bonus += 0.8
+
+    if contiguous_full_match:
+        phrase_bonus += 1.1
+    elif ordered_full_matches == len(normalized_tokens):
+        phrase_bonus += 0.7
+
+    total_title_matches = matched_title_source + fuzzy_title_source
+    if total_title_matches == len(normalized_tokens):
+        phrase_bonus += 1.0
+    elif total_title_matches >= max(2, len(normalized_tokens) - 1):
+        phrase_bonus += 0.6
+
+    score = (
+        matched_full * 0.03
+        + fuzzy_full * 0.02
+        + matched_title_source * 0.16
+        + fuzzy_title_source * 0.12
+        + phrase_bonus
+    )
+    if "оглавление" in text_haystack or len(re.findall(r"\.{4,}", text_haystack)) >= 2:
+        score -= 1.0
+    return score
+
+
+def _phrase_match_score(query: str, raw_item: dict[str, Any]) -> float:
+    chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+    title = str(chunk.get("title", "")).lower()
+    source_name = Path(str(chunk.get("source", ""))).name.lower()
+    section = str(chunk.get("section", "")).lower()
+    text = str(chunk.get("text", "")).lower()
+    title_source_haystack = " ".join([title, source_name, section])
+    full_haystack = " ".join([title_source_haystack, text])
+    normalized_query_tokens = _query_tokens(query)
+    if not normalized_query_tokens:
+        return 0.0
+
+    ordered_title_matches, contiguous_title_match = _count_ordered_phrase_matches(normalized_query_tokens, title_source_haystack)
+    ordered_full_matches, contiguous_full_match = _count_ordered_phrase_matches(normalized_query_tokens, full_haystack)
+    exact_title_matches, fuzzy_title_matches = _count_token_matches(normalized_query_tokens, title_source_haystack)
+    exact_full_matches, fuzzy_full_matches = _count_token_matches(normalized_query_tokens, full_haystack)
+    leading_haystack = full_haystack[:450]
+    leading_ordered_matches, leading_contiguous_match = _count_ordered_phrase_matches(normalized_query_tokens, leading_haystack)
+
+    score = 0.0
+    if contiguous_title_match:
+        score += 8.0
+    elif ordered_title_matches == len(normalized_query_tokens):
+        score += 6.0
+    elif ordered_title_matches >= max(2, len(normalized_query_tokens) - 1):
+        score += 4.0
+
+    if contiguous_full_match:
+        score += 3.0
+    elif ordered_full_matches == len(normalized_query_tokens):
+        score += 2.2
+    elif ordered_full_matches >= max(2, len(normalized_query_tokens) - 1):
+        score += 1.2
+
+    if leading_contiguous_match:
+        score += 2.2
+    elif leading_ordered_matches == len(normalized_query_tokens):
+        score += 1.4
+
+    score += exact_title_matches * 0.7
+    score += fuzzy_title_matches * 0.35
+    score += exact_full_matches * 0.15
+    score += fuzzy_full_matches * 0.08
+
+    if "оглавление" in text or len(re.findall(r"\.{4,}", text)) >= 2:
+        score -= 2.5
+    return score
+
+
+def _reciprocal_rank_fuse(score_maps: list[tuple[dict[int, float], float]], *, rank_constant: int = 60) -> dict[int, float]:
+    fused_scores: dict[int, float] = {}
+    for score_map, weight in score_maps:
+        if weight <= 0:
+            continue
+        ranked = sorted(score_map.items(), key=lambda item: item[1], reverse=True)
+        for rank, (idx, _score) in enumerate(ranked, start=1):
+            fused_scores[idx] = fused_scores.get(idx, 0.0) + weight / (rank_constant + rank)
+    return fused_scores
+
+
+def _build_query_variants(question: str) -> list[str]:
+    normalized = " ".join(question.lower().split())
+    variants: list[str] = []
+
+    def add_variant(value: str) -> None:
+        candidate = " ".join(value.split()).strip()
+        if candidate and candidate not in variants:
+            variants.append(candidate)
+
+    add_variant(question.strip())
+    add_variant(normalized)
+
+    tokens = re.findall(r"[\w=.\-]+", normalized, flags=re.UNICODE)
+    filtered_tokens = [token for token in tokens if token not in RUSSIAN_STOPWORDS]
+    filtered_query = " ".join(filtered_tokens).strip()
+    add_variant(filtered_query)
+
+    significant_tokens = [token for token in filtered_tokens if len(token) > 2 or token.isascii()]
+    for tail_size in (4, 3):
+        if len(significant_tokens) >= tail_size:
+            add_variant(" ".join(significant_tokens[-tail_size:]))
+
+    return variants
+
+
+def _build_embedding_queries(question: str) -> list[str]:
+    variants = _build_query_variants(question)
+    normalized = " ".join(question.lower().split())
+    tokens = re.findall(r"[\w=.\-]+", normalized, flags=re.UNICODE)
+    filtered_tokens = [token for token in tokens if token not in RUSSIAN_STOPWORDS]
+    significant_tokens = [token for token in filtered_tokens if len(token) > 2 or token.isascii()]
+    embedding_queries: list[str] = []
+
+    def add_query(value: str) -> None:
+        candidate = " ".join(value.split()).strip()
+        if candidate and candidate not in embedding_queries:
+            embedding_queries.append(candidate)
+
+    if len(significant_tokens) >= 3:
+        add_query(" ".join(significant_tokens))
+    if len(significant_tokens) >= 4:
+        add_query(" ".join(significant_tokens[-4:]))
+    if len(significant_tokens) >= 3:
+        add_query(" ".join(significant_tokens[-3:]))
+    if len(significant_tokens) < 3:
+        for variant in variants:
+            add_query(variant)
+
+    return embedding_queries
+
+
+def _retrieve_chunks(
+    *,
+    question: str,
+    index_file: Path,
+    metadata_file: Path,
+    embed_model: str,
+    ollama_url: str,
+    top_k: int,
+    enable_dense_search: bool,
+    enable_lexical_rerank: bool,
+    enable_lexical_fallback: bool,
+) -> list[_RetrievedChunk]:
+    try:
+        import faiss
+        import numpy as np
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="rag_dependencies_missing") from exc
+
+    if not index_file.exists():
+        raise HTTPException(status_code=503, detail=f"rag_index_not_found:{index_file}")
+    if not metadata_file.exists():
+        raise HTTPException(status_code=503, detail=f"rag_metadata_not_found:{metadata_file}")
+
+    day21_search = _load_day21_search_module()
+    metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+    items = metadata["items"]
+    index = faiss.read_index(str(index_file))
+
+    dense_reranked_scores: dict[int, float] = {}
+    phrase_scores: dict[int, float] = {}
+    fallback_scores: dict[int, float] = {}
+    query_variants = _build_query_variants(question)
+    embedding_queries = _build_embedding_queries(question)
+    search_depth = min(len(items), max(top_k * 10, 20))
+
+    if enable_dense_search:
+        for query_variant in embedding_queries:
+            query_embedding = day21_search.call_ollama_embed(
+                ollama_url=ollama_url,
+                model=embed_model,
+                text=query_variant,
+            )
+            query_vector = np.array([query_embedding], dtype="float32")
+            faiss.normalize_L2(query_vector)
+            distances, indices = index.search(query_vector, search_depth)
+            for score, idx in zip(distances[0], indices[0]):
+                if idx < 0 or idx >= len(items):
+                    continue
+                reranked_score = float(score)
+                if enable_lexical_rerank:
+                    reranked_score += _lexical_boost(query_variant, items[idx])
+                dense_reranked_scores[idx] = max(dense_reranked_scores.get(idx, float("-inf")), reranked_score)
+
+    for idx, raw_item in enumerate(items):
+        phrase_score = max(_phrase_match_score(query_variant, raw_item) for query_variant in query_variants)
+        if phrase_score > 0:
+            phrase_scores[idx] = phrase_score
+
+    if enable_lexical_fallback:
+        for idx, raw_item in enumerate(items):
+            lexical_score = max(_lexical_boost(query_variant, raw_item) for query_variant in query_variants)
+            if lexical_score <= 0:
+                continue
+            fallback_scores[idx] = max(fallback_scores.get(idx, float("-inf")), 0.5 + lexical_score)
+
+    candidate_scores = _reciprocal_rank_fuse(
+        [
+            (dense_reranked_scores, 1.0 if enable_dense_search else 0.0),
+            (phrase_scores, 2.5),
+            (fallback_scores, 0.9 if enable_lexical_fallback else 0.0),
+        ]
+    )
+    ranked_indices = sorted(candidate_scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
+
+    results: list[_RetrievedChunk] = []
+    for rank, (idx, score) in enumerate(ranked_indices, start=1):
+        raw_item = items[idx]
+        chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+        results.append(
+            _RetrievedChunk(
+                rank=rank,
+                score=float(score * 100),
+                chunk_id=str(chunk.get("chunk_id", "")),
+                title=str(chunk.get("title", "")),
+                source=str(chunk.get("source", "")),
+                section=str(chunk.get("section", "")),
+                text=str(chunk.get("text", "")).strip(),
+            )
+        )
+    return results
 
 
 def _resolve_retrieval_files(strategy: str, index_file: str | None, metadata_file: str | None) -> tuple[Path, Path]:

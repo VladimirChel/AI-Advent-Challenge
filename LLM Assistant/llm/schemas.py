@@ -50,6 +50,7 @@ class GenerateRequest(BaseModel):
     conversation_id: str | None = None
     branch_id: str = "main"
     task_id: str | None = None
+    chat_mode: Literal["default", "rag_task_chat"] = "rag_task_chat"
     model: str
     messages: list[ChatMessage]
     user_id: str | None = None
@@ -74,6 +75,20 @@ class RAGChunkPayload(BaseModel):
     text: str
 
 
+class SourcePayload(BaseModel):
+    source: str
+    section: str
+    chunk_id: str
+
+
+class CitationPayload(BaseModel):
+    source: str
+    section: str
+    chunk_id: str
+    quote: str
+    score: float | None = None
+
+
 class TaskStatePayload(BaseModel):
     task_id: str
     status: str
@@ -82,6 +97,11 @@ class TaskStatePayload(BaseModel):
     current_step: str | None = None
     blocked_reason: str | None = None
     allowed_events: list[str] = Field(default_factory=list)
+    goal: str | None = None
+    constraints: list[str] = Field(default_factory=list)
+    fixed_terms: list[str] = Field(default_factory=list)
+    clarified_points: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
 
 
 class TaskTransitionPayload(BaseModel):
@@ -123,6 +143,8 @@ class GenerateResponse(BaseModel):
     rag_chunks_used: int = 0
     rag_strategy: str | None = None
     rag_chunks: list[RAGChunkPayload] = Field(default_factory=list)
+    sources: list[SourcePayload] = Field(default_factory=list)
+    citations: list[CitationPayload] = Field(default_factory=list)
 
     project_invariants_used: bool = False
     project_invariants_count: int = 0

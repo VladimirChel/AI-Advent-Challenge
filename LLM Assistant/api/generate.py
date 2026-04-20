@@ -20,11 +20,18 @@ from invariants.service import (
     load_project_invariants,
 )
 from llm.client import aggregate_usage, call_chat_completion_with_mcp, extract_text_from_chat_completion
-from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServerConfig, MCPSettings
+from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServerConfig, MCPSettings, RAGSettings
 from llm.service import validate_output
 from memory.models import MemoryPolicy
 from memory.orchestrator import build_agent_context, materialize_context_messages
-from rag.service import build_day22_rag_context, enforce_rag_response_contract, resolve_rag_settings
+from rag.service import (
+    build_day22_rag_context,
+    build_rag_citations,
+    build_rag_sources,
+    build_task_aware_rag_query,
+    enforce_rag_response_contract,
+    resolve_rag_settings,
+)
 from repositories.conversations import assert_conversation_access
 from repositories.chunks import add_memory_chunks
 from repositories.facts import extract_candidate_facts, upsert_facts
@@ -150,16 +157,23 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     assert_conversation_access(conversation_id=conversation_id, user_id=user_id)
 
     policy = MemoryPolicy()
+    effective_task_id = payload.task_id
+    if payload.chat_mode == "rag_task_chat" and not effective_task_id:
+        effective_task_id = conversation_id
+
     rag_settings = resolve_rag_settings(payload.rag)
+    if payload.chat_mode == "rag_task_chat" and payload.rag is None and rag_settings is None:
+        rag_settings = resolve_rag_settings(RAGSettings(enabled=True))
     agent_ctx = build_agent_context(
         user_id=user_id,
         conversation_id=conversation_id,
         branch_id=branch_id,
-        task_id=payload.task_id,
+        task_id=effective_task_id,
         policy=policy,
         live_messages=payload.messages,
     )
-    rag_question = "\n".join(m.content for m in payload.messages if m.role == "user").strip()
+    latest_user_message = "\n".join(m.content for m in payload.messages if m.role == "user").strip()
+    rag_question = build_task_aware_rag_query(latest_user_message, agent_ctx.working_memory)
     rag_result = build_day22_rag_context(rag_question, rag_settings)
 
     full_messages = [*materialize_context_messages(agent_ctx)]
@@ -189,7 +203,8 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     task_update = maybe_update_task_memory(
         conversation_id=conversation_id,
         branch_id=branch_id,
-        task_id=payload.task_id,
+        task_id=effective_task_id,
+        chat_mode=payload.chat_mode,
         input_messages=payload.messages,
         assistant_response=content,
     )
@@ -252,7 +267,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         request_id=request_id,
         conversation_id=conversation_id,
         branch_id=branch_id,
-        task_id=payload.task_id,
+        task_id=effective_task_id,
         model=payload.model,
         content=content,
         finish_reason=finish_reason,
@@ -270,6 +285,8 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         rag_chunks_used=len(rag_result.chunks or []),
         rag_strategy=rag_result.strategy,
         rag_chunks=rag_result.chunks or [],
+        sources=build_rag_sources(rag_result.chunks or []),
+        citations=build_rag_citations(rag_result.chunks or []),
         project_invariants_used=bool(invariants.invariants),
         project_invariants_count=len(invariants.invariants),
         invariant_check_passed=invariant_check.allowed,
