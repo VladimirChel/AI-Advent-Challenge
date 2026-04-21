@@ -10,9 +10,9 @@ from config import (
     APP_NAME,
     APP_VERSION,
     DEFAULT_MODEL,
+    LLM_API_KEY,
+    LLM_BASE_URL,
     LOG_LEVEL,
-    PROXYAPI_API_KEY,
-    PROXYAPI_BASE_URL,
     REQUEST_TIMEOUT_SECONDS,
 )
 from db import db_pool, healthcheck_db, init_db
@@ -27,8 +27,8 @@ logging.basicConfig(
 logger = logging.getLogger("agent_app")
 
 client = OpenAI(
-    api_key=PROXYAPI_API_KEY,
-    base_url=PROXYAPI_BASE_URL,
+    api_key=LLM_API_KEY or "local-no-key-required",
+    base_url=LLM_BASE_URL,
     timeout=REQUEST_TIMEOUT_SECONDS,
 )
 

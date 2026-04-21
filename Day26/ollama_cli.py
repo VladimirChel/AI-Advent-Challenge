@@ -13,7 +13,7 @@ from typing import Any
 
 import requests
 
-DEFAULT_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+DEFAULT_HOST = os.environ.get("OLLAMA_HOST", "http://83.146.86.213:11434").rstrip("/")
 DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "")
 DEFAULT_TIMEOUT = 300
 HISTORY_DIR = Path.home() / ".ollama_cli"

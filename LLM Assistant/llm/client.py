@@ -7,7 +7,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from config import PROXYAPI_API_KEY, PROXYAPI_BASE_URL, REQUEST_TIMEOUT_SECONDS
+from config import LLM_API_KEY, LLM_BASE_URL, REQUEST_TIMEOUT_SECONDS
 from llm.mcp_client import MCPClientSession
 from llm.schemas import ChatMessage, MCPServerConfig, MCPSettings
 
@@ -20,8 +20,8 @@ from orchestration import ChatMessage as OrchestrationChatMessage
 from orchestration import normalize_server_id
 
 client = OpenAI(
-    api_key=PROXYAPI_API_KEY,
-    base_url=PROXYAPI_BASE_URL,
+    api_key=LLM_API_KEY or "local-no-key-required",
+    base_url=LLM_BASE_URL,
     timeout=REQUEST_TIMEOUT_SECONDS,
 )
 

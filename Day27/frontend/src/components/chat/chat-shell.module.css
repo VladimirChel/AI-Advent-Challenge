@@ -1,0 +1,163 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  min-height: 100vh;
+  gap: 24px;
+  padding: 24px;
+}
+
+.sidebar,
+.chatStage {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
+.sidebar {
+  padding: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 0.95;
+}
+
+.copy {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 16px 0 28px;
+}
+
+.panel {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.5);
+  margin-bottom: 16px;
+}
+
+.label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--muted);
+}
+
+.label:last-child {
+  margin-bottom: 0;
+}
+
+.label select,
+.form textarea {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fffdf8;
+  color: var(--text);
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.healthItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(114, 106, 92, 0.15);
+}
+
+.healthItem:last-child {
+  border-bottom: 0;
+}
+
+.chatStage {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+}
+
+.messageList {
+  padding: 24px;
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+}
+
+.userBubble,
+.assistantBubble {
+  max-width: min(720px, 85%);
+  border-radius: 20px;
+  padding: 16px 18px;
+}
+
+.userBubble {
+  margin-left: auto;
+  background: linear-gradient(135deg, #2e6b94, var(--user));
+  color: white;
+}
+
+.assistantBubble {
+  background: var(--assistant);
+  border: 1px solid var(--line);
+}
+
+.messageRole {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.messageContent {
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 250, 242, 0.8);
+}
+
+.form button {
+  justify-self: end;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 20px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+.form button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+@media (max-width: 900px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    order: 2;
+  }
+}
+

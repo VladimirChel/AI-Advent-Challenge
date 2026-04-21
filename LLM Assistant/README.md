@@ -8,7 +8,7 @@ This project is not just a proxy to a language model. It is an agent-oriented ba
 
 The service supports:
 
-- generation through an external LLM API;
+- generation through an OpenAI-compatible LLM API, including local servers;
 - MCP tools through one or more local `stdio` servers;
 - optional Day22 RAG over FAISS artifacts from `../Day21`;
 - short-term memory from recent messages;
@@ -137,8 +137,8 @@ The application uses environment variables from `.env`.
 
 Key parameters:
 
-- `PROXYAPI_API_KEY` - API key for the LLM provider;
-- `PROXYAPI_BASE_URL` - base URL of the provider;
+- `LLM_API_KEY` - API key for the LLM provider. Optional for local servers that ignore authorization headers. Legacy name: `PROXYAPI_API_KEY`.
+- `LLM_BASE_URL` - base URL of the OpenAI-compatible provider or local server. Legacy name: `PROXYAPI_BASE_URL`.
 - `DEFAULT_MODEL` - default model identifier;
 - `DATABASE_URL` - PostgreSQL connection string;
 - `INVARIANTS_FILE` - path to the JSON file with hard project invariants;
@@ -154,6 +154,20 @@ Key parameters:
 - `MCP_SERVER_SCRIPT` - single default MCP server script kept for backward compatibility.
 - `MCP_SERVER_SCRIPTS` - optional list of default MCP server scripts. Supports JSON array or `;`-separated paths.
 - `MCP_WAIT_AFTER_START_SECONDS` - optional delay after server start before the first tool call.
+
+Example `.env` values for local servers:
+
+```env
+# LM Studio
+LLM_BASE_URL=http://127.0.0.1:1234/v1
+LLM_API_KEY=lm-studio
+DEFAULT_MODEL=local-model
+
+# Ollama OpenAI-compatible endpoint
+# LLM_BASE_URL=http://127.0.0.1:11434/v1
+# LLM_API_KEY=ollama
+# DEFAULT_MODEL=qwen2.5:7b-instruct
+```
 
 Per-request Day22 RAG can be toggled through the `rag` field:
 
@@ -183,7 +197,7 @@ Example request for manual testing:
 {
   "conversation_id": "conv-mcp-1",
   "branch_id": "main",
-  "model": "openai/gpt-4o-mini",
+  "model": "gpt-4o-mini",
   "messages": [
     {
       "role": "user",

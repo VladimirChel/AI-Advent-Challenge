@@ -34,8 +34,8 @@ class LLMTesterApp(ctk.CTk):
         self.register_email_var = ctk.StringVar()
         self.register_password_var = ctk.StringVar()
         self.confirm_password_var = ctk.StringVar()
-        self.model_var = ctk.StringVar(value="openai/gpt-4o-mini")
-        self.model_values: list[str] = ["openai/gpt-4o-mini"]
+        self.model_var = ctk.StringVar()
+        self.model_values: list[str] = []
         self.branch_id_var = ctk.StringVar(value="main")
         self.task_id_var = ctk.StringVar()
         self.conversation_id_var = ctk.StringVar(value=str(uuid.uuid4()))
@@ -524,11 +524,18 @@ class LLMTesterApp(ctk.CTk):
     def _update_model_values(self, values: list[str]) -> None:
         cleaned = [value for value in values if value]
         if not cleaned:
-            cleaned = ["openai/gpt-4o-mini"]
+            self.model_values = []
+            self._schedule_session_save()
+            return
         self.model_values = cleaned
-        if self.model_var.get() not in self.model_values:
+        if not self.model_var.get().strip():
+            self.model_var.set(self.model_values[0])
+        elif self.model_var.get() not in self.model_values:
             self.model_var.set(self.model_values[0])
         self._schedule_session_save()
+
+    def _selected_model(self) -> str:
+        return self.model_var.get().strip()
 
     def _reset_request_context(self) -> None:
         self.session.close()
@@ -580,18 +587,17 @@ class LLMTesterApp(ctk.CTk):
             messages.extend(self.history)
         messages.append({"role": "user", "content": user_message})
         mcp_servers = self._collect_mcp_servers()
+        model = self._selected_model()
 
         payload: dict[str, Any] = {
             "conversation_id": self.conversation_id_var.get().strip() or str(uuid.uuid4()),
             "branch_id": self.branch_id_var.get().strip() or "main",
             "task_id": self.task_id_var.get().strip() or None,
-            "model": self.model_var.get().strip() or "openai/gpt-4o-mini",
+            "model": model,
             "messages": messages,
             "temperature": 0.2,
             "max_tokens": 800,
             "top_p": 1.0,
-            "presence_penalty": 0.0,
-            "frequency_penalty": 0.0,
             "show_task_transition_in_chat": self.show_task_transition_in_chat_var.get(),
         }
 
@@ -610,6 +616,9 @@ class LLMTesterApp(ctk.CTk):
 
     def copy_payload(self) -> None:
         message = self.message_input.get("1.0", "end").strip() or "test message"
+        if not self._selected_model():
+            self.set_status("enter model or refresh models first")
+            return
         payload = self.build_payload(message)
         self.clipboard_clear()
         self.clipboard_append(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -736,6 +745,9 @@ class LLMTesterApp(ctk.CTk):
         user_message = self.message_input.get("1.0", "end").strip()
         if not user_message:
             self.set_status("enter a message")
+            return
+        if not self._selected_model():
+            self.set_status("enter model or refresh models first")
             return
 
         payload = self.build_payload(user_message)

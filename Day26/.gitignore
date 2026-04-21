@@ -1,7 +1,8 @@
 __pycache__/
 config.json
-llm_gui_client_session.json
 .env
 *.pyc
 logs/
-temp/
+documents/
+output/
+tests/

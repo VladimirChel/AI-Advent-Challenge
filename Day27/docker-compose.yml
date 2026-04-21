@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: llm-chat-postgres
+    environment:
+      POSTGRES_DB: llmchat
+      POSTGRES_USER: llmchat
+      POSTGRES_PASSWORD: llmchat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: llm-chat-backend
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://llmchat:llmchat@postgres:5432/llmchat
+      DEFAULT_PROVIDER: proxyapi
+      DEFAULT_MODEL: gpt-4o-mini
+      PROXYAPI_BASE_URL: ${PROXYAPI_BASE_URL:-https://api.proxyapi.ru/openai/v1}
+      PROXYAPI_API_KEY: ${PROXYAPI_API_KEY:-replace_me}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: llm-chat-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
