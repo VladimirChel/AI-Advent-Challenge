@@ -10,10 +10,10 @@ from typing import Any
 from fastapi import HTTPException
 
 from config import (
-    RAG_DEFAULT_STRATEGY,
+    RAG_STRATEGY,
     RAG_DENSE_SEARCH_ENABLED,
     RAG_EMBED_MODEL,
-    RAG_ENABLED_BY_DEFAULT,
+    RAG_ENABLED,
     RAG_INDEX_FILE,
     RAG_LEXICAL_FALLBACK_ENABLED,
     RAG_LEXICAL_RERANK_ENABLED,
@@ -115,12 +115,12 @@ def resolve_rag_settings(payload_rag: RAGSettings | None) -> RAGSettings | None:
     if payload_rag is not None:
         return payload_rag if payload_rag.enabled else None
 
-    if not RAG_ENABLED_BY_DEFAULT:
+    if not RAG_ENABLED:
         return None
 
     return RAGSettings(
         enabled=True,
-        strategy=RAG_DEFAULT_STRATEGY,
+        strategy=RAG_STRATEGY,
         index_file=str(RAG_INDEX_FILE) if RAG_INDEX_FILE else None,
         metadata_file=str(RAG_METADATA_FILE) if RAG_METADATA_FILE else None,
         embed_model=RAG_EMBED_MODEL,

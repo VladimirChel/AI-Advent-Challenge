@@ -4,20 +4,17 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends, FastAPI
-from openai import OpenAI
-
 from config import (
     APP_NAME,
     APP_VERSION,
     DEFAULT_MODEL,
-    LLM_API_KEY,
-    LLM_BASE_URL,
+    DEFAULT_LLM_PROVIDER,
     LOG_LEVEL,
-    REQUEST_TIMEOUT_SECONDS,
 )
 from db import db_pool, healthcheck_db, init_db
 from auth.dependencies import get_current_user
 from auth.schemas import PublicUser
+from llm.client import get_openai_client, list_llm_providers, resolve_provider_id
 
 
 logging.basicConfig(
@@ -25,13 +22,6 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("agent_app")
-
-client = OpenAI(
-    api_key=LLM_API_KEY or "local-no-key-required",
-    base_url=LLM_BASE_URL,
-    timeout=REQUEST_TIMEOUT_SECONDS,
-)
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -66,15 +56,26 @@ def health() -> dict[str, Any]:
         "version": APP_VERSION,
         "database": "ok" if db_ok else "error",
         "database_error": db_error,
+        "default_provider": DEFAULT_LLM_PROVIDER,
         "default_model": DEFAULT_MODEL,
         "time": utc_now_iso(),
     }
 
 
-@app.get("/models")
-def list_models(_: PublicUser = Depends(get_current_user)) -> dict[str, Any]:
-    result = client.models.list()
+@app.get("/providers")
+def list_providers(_: PublicUser = Depends(get_current_user)) -> dict[str, Any]:
     return {
+        "default_provider": DEFAULT_LLM_PROVIDER,
+        "data": list_llm_providers(),
+    }
+
+
+@app.get("/models")
+def list_models(provider_id: str | None = None, _: PublicUser = Depends(get_current_user)) -> dict[str, Any]:
+    resolved_provider_id = resolve_provider_id(provider_id)
+    result = get_openai_client(resolved_provider_id).models.list()
+    return {
+        "provider_id": resolved_provider_id,
         "data": [
             {
                 "id": getattr(item, "id", None),

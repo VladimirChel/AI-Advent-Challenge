@@ -1,5 +1,6 @@
 from typing import Any, Literal
 from pydantic import BaseModel, Field
+from config import TASK_SHOW_TRANSITIONS
 
 
 class ChatMessage(BaseModel):
@@ -51,6 +52,7 @@ class GenerateRequest(BaseModel):
     branch_id: str = "main"
     task_id: str | None = None
     chat_mode: Literal["default", "rag_task_chat"] = "rag_task_chat"
+    provider_id: str | None = Field(default=None, min_length=1, max_length=100)
     model: str
     messages: list[ChatMessage]
     user_id: str | None = None
@@ -60,7 +62,7 @@ class GenerateRequest(BaseModel):
     presence_penalty: float = 0.0
     frequency_penalty: float = 0.0
     validation: ResponseValidationRules | None = None
-    show_task_transition_in_chat: bool = True
+    show_task_transition_in_chat: bool = TASK_SHOW_TRANSITIONS
     mcp: MCPSettings | None = None
     rag: RAGSettings | None = None
 
@@ -124,6 +126,7 @@ class GenerateResponse(BaseModel):
     conversation_id: str
     branch_id: str
     task_id: str | None = None
+    provider_id: str | None = None
     model: str
     content: str
     finish_reason: str | None = None

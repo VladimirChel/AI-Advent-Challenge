@@ -1,6 +1,17 @@
 import re
 from typing import Any
 
+from config import (
+    TASK_CLARIFIED_POINTS_LIMIT,
+    TASK_CONSTRAINTS_LIMIT,
+    TASK_FIXED_TERMS_LIMIT,
+    TASK_GOAL_MAX_CHARS,
+    TASK_LAST_RESPONSE_PREVIEW_CHARS,
+    TASK_LAST_USER_MESSAGE_MAX_CHARS,
+    TASK_MEMORY_ENABLED,
+    TASK_OPEN_QUESTIONS_LIMIT,
+    TASK_REQUIRE_PLAN_APPROVAL,
+)
 from llm.schemas import ChatMessage
 from memory.models import ExpectedAction, TaskMemory, TaskStage, TaskStatus
 from tasks.repository import add_task_transition, get_task_memory, upsert_task_memory
@@ -21,7 +32,7 @@ def maybe_update_task_memory(
     input_messages: list[ChatMessage],
     assistant_response: str,
 ) -> dict[str, Any]:
-    if not task_id:
+    if not TASK_MEMORY_ENABLED or not task_id:
         return {
             "task_state": None,
             "task_transition": None,
@@ -43,7 +54,7 @@ def maybe_update_task_memory(
 
     user_messages = [m.content.strip() for m in input_messages if m.role == "user" and m.content.strip()]
     if user_messages and not task.goal:
-        task.goal = user_messages[-1][:1000]
+        task.goal = user_messages[-1][:TASK_GOAL_MAX_CHARS]
 
     if not task.plan:
         task.plan = [
@@ -89,7 +100,7 @@ def maybe_update_task_memory(
             },
         }
 
-    task.task_state["last_response_preview"] = assistant_response[:500]
+    task.task_state["last_response_preview"] = assistant_response[:TASK_LAST_RESPONSE_PREVIEW_CHARS]
 
     upsert_task_memory(conversation_id, branch_id, task)
     add_task_transition(
@@ -164,7 +175,7 @@ def _update_rag_task_chat_memory(
     if user_messages:
         latest_user = user_messages[-1]
         if not task.goal:
-            task.goal = latest_user[:1000]
+            task.goal = latest_user[:TASK_GOAL_MAX_CHARS]
 
         task_state = _normalize_task_state(task.task_state)
         if not task_state.get("dialog_goal"):
@@ -174,17 +185,20 @@ def _update_rag_task_chat_memory(
         for message in user_messages:
             if message not in existing_points:
                 existing_points.append(message)
-        task_state["clarified_points"] = existing_points[-12:]
+        task_state["clarified_points"] = _tail(existing_points, TASK_CLARIFIED_POINTS_LIMIT)
 
         existing_constraints = [str(item).strip() for item in task.constraints if str(item).strip()]
         merged_constraints = _merge_unique(existing_constraints, _extract_constraints_from_messages(user_messages))
-        task.constraints = merged_constraints[-10:]
+        task.constraints = _tail(merged_constraints, TASK_CONSTRAINTS_LIMIT)
         task_state["constraints"] = task.constraints
 
         existing_terms = [str(item).strip() for item in task_state.get("fixed_terms", []) if str(item).strip()]
-        task_state["fixed_terms"] = _merge_unique(existing_terms, _extract_fixed_terms_from_messages(user_messages))[-12:]
+        task_state["fixed_terms"] = _tail(
+            _merge_unique(existing_terms, _extract_fixed_terms_from_messages(user_messages)),
+            TASK_FIXED_TERMS_LIMIT,
+        )
 
-        task_state["last_user_message"] = latest_user[:1000]
+        task_state["last_user_message"] = latest_user[:TASK_LAST_USER_MESSAGE_MAX_CHARS]
 
     task.stage = TaskStage.execution
     task.status = TaskStatus.active
@@ -199,7 +213,7 @@ def _update_rag_task_chat_memory(
     task.task_state.update(task_state if user_messages else {})
     task.task_state["dialog_goal"] = task.task_state.get("dialog_goal") or task.goal
     task.task_state["open_questions"] = open_questions
-    task.task_state["last_response_preview"] = assistant_response[:500]
+    task.task_state["last_response_preview"] = assistant_response[:TASK_LAST_RESPONSE_PREVIEW_CHARS]
     task.task_state["waiting_for_user"] = True
 
     if not task.plan:
@@ -285,7 +299,7 @@ def _infer_task_event(
         if _looks_finished(latest_response):
             return TaskEvent.submit_for_validation, "cannot_finish_task_before_plan_approval", None
 
-        if _looks_execution_work(latest_response) and not plan_approved:
+        if TASK_REQUIRE_PLAN_APPROVAL and _looks_execution_work(latest_response) and not plan_approved:
             return TaskEvent.execute_step, "cannot_start_implementation_before_plan_approval", None
 
         if _looks_like_plan(latest_response):
@@ -564,7 +578,13 @@ def _extract_open_questions(response: str) -> list[str]:
         prompts = ("уточните", "подтвердите", "какой", "какая", "нужен ли", "please clarify")
         if any(prompt in lowered for prompt in prompts):
             questions.append(normalized[:200] or "Assistant requested clarification.")
-    return questions[:5]
+    return questions[: max(TASK_OPEN_QUESTIONS_LIMIT, 0)]
+
+
+def _tail(items: list[str], limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    return items[-limit:]
 
 
 def _normalize_task_state(task_state: dict[str, Any] | None) -> dict[str, Any]:

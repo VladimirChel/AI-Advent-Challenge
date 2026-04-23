@@ -243,6 +243,7 @@ def _run_fallback_invariant_check(
     *,
     payload_text: str,
     model: str | None,
+    provider_id: str | None,
     user_id: str | None,
 ) -> InvariantCheckResult:
     fallback_messages = [
@@ -262,6 +263,7 @@ def _run_fallback_invariant_check(
     ]
 
     response = call_chat_completion(
+        provider_id=provider_id,
         model=model or DEFAULT_MODEL,
         messages=fallback_messages,
         temperature=0.0,
@@ -314,6 +316,7 @@ def check_response_against_invariants(
     user_messages: list[ChatMessage],
     assistant_response: str,
     model: str | None,
+    provider_id: str | None,
     user_id: str | None,
 ) -> InvariantCheckResult:
     project_invariants = load_project_invariants()
@@ -339,6 +342,7 @@ def check_response_against_invariants(
     ]
 
     response = call_chat_completion(
+        provider_id=provider_id,
         model=model or DEFAULT_MODEL,
         messages=checker_messages,
         temperature=0.0,
@@ -376,6 +380,7 @@ def check_response_against_invariants(
     result = _run_fallback_invariant_check(
         payload_text=payload_text,
         model=model,
+        provider_id=provider_id,
         user_id=user_id,
     )
     if _is_meta_false_positive(

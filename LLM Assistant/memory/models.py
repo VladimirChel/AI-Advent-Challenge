@@ -1,6 +1,12 @@
 from enum import Enum
 from typing import Any
 from pydantic import BaseModel, Field
+from config import (
+    HISTORY_LIMIT,
+    RETRIEVAL_ENABLED,
+    RETRIEVAL_LIMIT,
+    STICKY_FACTS_ENABLED,
+)
 from llm.schemas import ChatMessage
 
 
@@ -9,10 +15,10 @@ class MemoryPolicy(BaseModel):
     working_memory_enabled: bool = True
     long_term_enabled: bool = True
     summary_enabled: bool = True
-    sticky_facts_enabled: bool = True
-    retrieval_enabled: bool = True
-    short_term_limit: int = 20
-    retrieval_limit: int = 6
+    sticky_facts_enabled: bool = STICKY_FACTS_ENABLED
+    retrieval_enabled: bool = RETRIEVAL_ENABLED
+    short_term_limit: int = HISTORY_LIMIT
+    retrieval_limit: int = RETRIEVAL_LIMIT
 
 
 class TaskStatus(str, Enum):

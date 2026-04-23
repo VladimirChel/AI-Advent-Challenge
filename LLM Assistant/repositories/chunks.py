@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
+from config import RETRIEVAL_CANDIDATE_POOL, RETRIEVAL_MAX_CONTENT_CHARS, RETRIEVAL_MIN_QUERY_CHARS, RETRIEVAL_MIN_SCORE
 from db import get_db_connection
 from llm.schemas import ChatMessage
 from memory.models import RetrievedMemoryItem
@@ -58,6 +59,9 @@ def retrieve_memory_chunks(
     query: str,
     limit: int,
 ) -> list[RetrievedMemoryItem]:
+    if len(query.strip()) < RETRIEVAL_MIN_QUERY_CHARS:
+        return []
+
     tokens = _tokenize(query)
     if not tokens or limit <= 0:
         return []
@@ -70,9 +74,9 @@ def retrieve_memory_chunks(
                 FROM memory_chunks
                 WHERE user_id = %s
                 ORDER BY updated_at DESC, id DESC
-                LIMIT 200
+                LIMIT %s
                 """,
-                (user_id,),
+                (user_id, RETRIEVAL_CANDIDATE_POOL),
             )
             rows = cur.fetchall()
 
@@ -83,12 +87,14 @@ def retrieve_memory_chunks(
         if overlap <= 0:
             continue
         score = overlap + float(importance or 0)
+        if score < RETRIEVAL_MIN_SCORE:
+            continue
         ranked.append(
             RetrievedMemoryItem(
                 source_type=f"{source_type}/{memory_tier}",
                 source_ref=source_ref,
                 score=round(score, 3),
-                content=chunk_text,
+                content=chunk_text[:RETRIEVAL_MAX_CONTENT_CHARS],
             )
         )
 

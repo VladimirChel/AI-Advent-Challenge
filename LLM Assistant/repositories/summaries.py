@@ -5,6 +5,7 @@ from datetime import timezone
 
 from db import get_db_connection
 from llm.schemas import ChatMessage
+from config import SUMMARY_KEEP_LAST_MESSAGES, SUMMARY_MAX_TOKENS
 
 
 @dataclass
@@ -72,7 +73,12 @@ def get_user_memory_summary(user_id: str, limit: int = 3) -> str | None:
     )
 
 
-def build_summary_from_messages(messages: list[ChatMessage], *, max_items: int = 10, max_chars: int = 4000) -> str:
+def build_summary_from_messages(
+    messages: list[ChatMessage],
+    *,
+    max_items: int = SUMMARY_KEEP_LAST_MESSAGES,
+    max_chars: int = SUMMARY_MAX_TOKENS * 4,
+) -> str:
     if not messages:
         return ""
 

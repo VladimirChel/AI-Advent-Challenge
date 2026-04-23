@@ -135,25 +135,45 @@ Returns the current project invariant set loaded from the dedicated invariants f
 
 The application uses environment variables from `.env`.
 
+You can edit the service settings from one place with the GUI configurator:
+
+```bash
+python service_config_gui.py
+```
+
+On Windows you can also run:
+
+```cmd
+config.cmd
+```
+
+The configurator groups settings by Server, LLM, Memory, RAG, and MCP. It creates a timestamped `.env` backup before saving and includes a local Ollama preset for smaller prompts.
+
 Key parameters:
 
 - `LLM_API_KEY` - API key for the LLM provider. Optional for local servers that ignore authorization headers. Legacy name: `PROXYAPI_API_KEY`.
 - `LLM_BASE_URL` - base URL of the OpenAI-compatible provider or local server. Legacy name: `PROXYAPI_BASE_URL`.
+- `DEFAULT_LLM_PROVIDER` - provider profile used when the client does not send `provider_id`.
+- `LLM_PROVIDERS` - optional JSON array of OpenAI-compatible provider profiles with `id`, `base_url`, and `api_key` or `api_key_env`.
 - `DEFAULT_MODEL` - default model identifier;
 - `DATABASE_URL` - PostgreSQL connection string;
 - `INVARIANTS_FILE` - path to the JSON file with hard project invariants;
 - `REQUEST_TIMEOUT_SECONDS` - timeout for LLM requests.
-- `RAG_ENABLED_BY_DEFAULT` - enable Day22 RAG on every `/generate` request unless overridden.
-- `RAG_DEFAULT_STRATEGY` - default Day21 index strategy: `structure` or `fixed`.
+- `RAG_ENABLED` - enable Day22 RAG on every `/generate` request unless overridden.
+- `RAG_STRATEGY` - Day21 index strategy: `structure` or `fixed`.
 - `RAG_INDEX_FILE` - optional explicit FAISS index path for Day22 RAG.
 - `RAG_METADATA_FILE` - optional explicit chunks metadata path for Day22 RAG.
 - `RAG_EMBED_MODEL` - embedding model used for retrieval against the Day21 index.
 - `RAG_OLLAMA_URL` - Ollama base URL for embeddings.
 - `RAG_MAX_CHUNKS` - how many retrieved chunks to inject into the prompt.
-- `MCP_ENABLED_BY_DEFAULT` - enable MCP on every `/generate` request unless overridden.
+- `MCP_ENABLED` - enable MCP on every `/generate` request unless overridden.
 - `MCP_SERVER_SCRIPT` - single default MCP server script kept for backward compatibility.
 - `MCP_SERVER_SCRIPTS` - optional list of default MCP server scripts. Supports JSON array or `;`-separated paths.
 - `MCP_WAIT_AFTER_START_SECONDS` - optional delay after server start before the first tool call.
+- `TASK_MEMORY_ENABLED` - enable task state tracking for requests with `task_id`.
+- `TASK_AUTO_ID_FOR_RAG_CHAT` - use `conversation_id` as `task_id` for `rag_task_chat` when no task id is provided.
+- `TASK_REQUIRE_PLAN_APPROVAL` - block execution transitions until a plan is approved.
+- `TASK_*_LIMIT` / `TASK_*_MAX_CHARS` - tune how much task context is saved and later injected into prompts.
 
 Example `.env` values for local servers:
 
@@ -167,6 +187,10 @@ DEFAULT_MODEL=local-model
 # LLM_BASE_URL=http://127.0.0.1:11434/v1
 # LLM_API_KEY=ollama
 # DEFAULT_MODEL=qwen2.5:7b-instruct
+
+# Multiple providers selectable from llm_gui_client.py
+# DEFAULT_LLM_PROVIDER=ollama
+# LLM_PROVIDERS=[{"id":"ollama","base_url":"http://127.0.0.1:11434/v1","api_key":"ollama"},{"id":"cloud","base_url":"https://openai.api.proxyapi.ru/v1","api_key_env":"LLM_CLOUD_API_KEY"}]
 ```
 
 Per-request Day22 RAG can be toggled through the `rag` field:

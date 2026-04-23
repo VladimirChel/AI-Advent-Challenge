@@ -4,6 +4,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Any
 
+from config import TASK_REQUIRE_PLAN_APPROVAL
 from memory.models import ExpectedAction, TaskMemory, TaskStage, TaskStatus
 
 
@@ -194,7 +195,7 @@ def _assert_business_rules(task: TaskMemory, event: TaskEvent) -> None:
     plan_approved = bool(task_state.get("plan_approved"))
     validation_requested = bool(task_state.get("validation_requested"))
 
-    if event in {TaskEvent.execute_step, TaskEvent.submit_for_validation} and not plan_approved:
+    if TASK_REQUIRE_PLAN_APPROVAL and event in {TaskEvent.execute_step, TaskEvent.submit_for_validation} and not plan_approved:
         raise InvalidTaskTransition("Implementation is blocked until the plan is explicitly approved.")
 
     if event == TaskEvent.validation_passed and not validation_requested:

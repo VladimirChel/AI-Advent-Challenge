@@ -6,6 +6,7 @@ import tkinter as tk
 import uuid
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 
 import customtkinter as ctk
 import requests
@@ -34,6 +35,8 @@ class LLMTesterApp(ctk.CTk):
         self.register_email_var = ctk.StringVar()
         self.register_password_var = ctk.StringVar()
         self.confirm_password_var = ctk.StringVar()
+        self.provider_var = ctk.StringVar()
+        self.provider_values: list[str] = []
         self.model_var = ctk.StringVar()
         self.model_values: list[str] = []
         self.branch_id_var = ctk.StringVar(value="main")
@@ -43,15 +46,12 @@ class LLMTesterApp(ctk.CTk):
         self.include_history_var = ctk.BooleanVar(value=True)
         self.require_json_var = ctk.BooleanVar(value=False)
         self.show_task_transition_in_chat_var = ctk.BooleanVar(value=True)
-        self.enable_mcp_var = ctk.BooleanVar(value=False)
-        self.enable_rag_var = ctk.BooleanVar(value=False)
 
         self.access_token: str | None = None
         self.current_user: dict[str, Any] | None = None
         self.history: list[dict[str, str]] = []
         self.chat_transcript: list[dict[str, str]] = []
         self.last_raw_response: Any = None
-        self.default_mcp_server_scripts = self._load_default_mcp_server_scripts()
         self.session_state_path = Path(__file__).resolve().with_name("llm_gui_client_session.json")
         self._session_restore_in_progress = False
         self._session_save_after_id: str | None = None
@@ -94,7 +94,7 @@ class LLMTesterApp(ctk.CTk):
 
         ctk.CTkLabel(
             header,
-            text="GUI client for auth, chat requests, and MCP visibility.",
+            text="GUI client for auth, chat requests, and service diagnostics.",
             justify="left",
             wraplength=300,
             anchor="w",
@@ -215,7 +215,7 @@ class LLMTesterApp(ctk.CTk):
 
         ctk.CTkLabel(
             header,
-            text="Chat / MCP Inspector",
+            text="Chat / Service Inspector",
             font=ctk.CTkFont(size=22, weight="bold"),
             anchor="w",
         ).grid(row=0, column=0, padx=16, pady=12, sticky="w")
@@ -285,40 +285,27 @@ class LLMTesterApp(ctk.CTk):
         right = ctk.CTkFrame(chat_tab)
         right.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=0)
         right.grid_columnconfigure(0, weight=1)
-        right.grid_rowconfigure(3, weight=1)
-        right.grid_rowconfigure(5, weight=2)
+        right.grid_rowconfigure(2, weight=1)
 
         ctk.CTkLabel(
             right,
-            text="MCP Runtime",
+            text="Service Info",
             font=ctk.CTkFont(size=18, weight="bold"),
             anchor="w",
         ).grid(row=0, column=0, padx=12, pady=(12, 6), sticky="ew")
 
-        self.mcp_summary_label = ctk.CTkLabel(
+        self.service_info_summary_label = ctk.CTkLabel(
             right,
-            text="MCP is idle. Send a request with MCP enabled to inspect connected servers and tools.",
+            text="Send a request to inspect latency, memory, RAG, MCP, task state, and sources.",
             justify="left",
             wraplength=420,
             anchor="w",
         )
-        self.mcp_summary_label.grid(row=1, column=0, padx=12, pady=(0, 8), sticky="ew")
+        self.service_info_summary_label.grid(row=1, column=0, padx=12, pady=(0, 8), sticky="ew")
 
-        ctk.CTkLabel(right, text="Connected Servers", anchor="w").grid(
-            row=2, column=0, padx=12, pady=(0, 4), sticky="ew"
-        )
-
-        self.mcp_servers_box = ctk.CTkTextbox(right, height=140, wrap="word")
-        self.mcp_servers_box.grid(row=3, column=0, padx=12, pady=(0, 8), sticky="nsew")
-        self.mcp_servers_box.configure(state="disabled")
-
-        ctk.CTkLabel(right, text="Available Tools", anchor="w").grid(
-            row=4, column=0, padx=12, pady=(0, 4), sticky="ew"
-        )
-
-        self.mcp_tools_box = ctk.CTkTextbox(right, wrap="word")
-        self.mcp_tools_box.grid(row=5, column=0, padx=12, pady=(0, 12), sticky="nsew")
-        self.mcp_tools_box.configure(state="disabled")
+        self.service_info_box = ctk.CTkTextbox(right, wrap="word")
+        self.service_info_box.grid(row=2, column=0, padx=12, pady=(0, 12), sticky="nsew")
+        self.service_info_box.configure(state="disabled")
 
     def _build_settings_tab(self) -> None:
         settings_tab = self.tabs.tab("Settings")
@@ -368,6 +355,30 @@ class LLMTesterApp(ctk.CTk):
         )
         row += 1
 
+        provider_row = ctk.CTkFrame(right, fg_color="transparent")
+        provider_row.grid(row=row, column=0, padx=8, pady=(0, 4), sticky="ew")
+        provider_row.grid_columnconfigure(0, weight=1)
+        row += 1
+
+        self.provider_value_entry = ctk.CTkEntry(provider_row, textvariable=self.provider_var)
+        self.provider_value_entry.grid(row=0, column=0, padx=(0, 8), pady=0, sticky="ew")
+
+        self.refresh_providers_button = ctk.CTkButton(
+            provider_row,
+            text="Refresh providers",
+            width=140,
+            command=self.fetch_providers,
+        )
+        self.refresh_providers_button.grid(row=0, column=1, padx=0, pady=0, sticky="e")
+
+        self.choose_provider_button = ctk.CTkButton(
+            right,
+            text="Choose provider",
+            command=self.open_provider_picker,
+        )
+        self.choose_provider_button.grid(row=row, column=0, padx=8, pady=(0, 10), sticky="ew")
+        row += 1
+
         model_row = ctk.CTkFrame(right, fg_color="transparent")
         model_row.grid(row=row, column=0, padx=8, pady=(0, 4), sticky="ew")
         model_row.grid_columnconfigure(0, weight=1)
@@ -409,25 +420,6 @@ class LLMTesterApp(ctk.CTk):
         ).grid(row=row, column=0, padx=12, pady=(0, 6), sticky="w")
         row += 1
 
-        ctk.CTkSwitch(right, text="Enable MCP tools", variable=self.enable_mcp_var).grid(
-            row=row, column=0, padx=12, pady=(0, 6), sticky="w"
-        )
-        row += 1
-
-        ctk.CTkSwitch(right, text="Enable Day22 RAG", variable=self.enable_rag_var).grid(
-            row=row, column=0, padx=12, pady=(0, 6), sticky="w"
-        )
-        row += 1
-
-        ctk.CTkLabel(right, text="MCP servers (one script per line)", anchor="w").grid(
-            row=row, column=0, padx=8, pady=(8, 4), sticky="ew"
-        )
-        row += 1
-
-        self.mcp_servers_input = ctk.CTkTextbox(right, height=140, wrap="word")
-        self.mcp_servers_input.grid(row=row, column=0, padx=8, pady=(0, 10), sticky="ew")
-        self.mcp_servers_input.insert("1.0", "\n".join(self.default_mcp_server_scripts))
-
     def _change_theme(self, value: str) -> None:
         ctk.set_appearance_mode(value)
         self._schedule_session_save()
@@ -453,54 +445,6 @@ class LLMTesterApp(ctk.CTk):
         widget.delete("1.0", "end")
         widget.insert("1.0", text)
         widget.configure(state="disabled")
-
-    def _load_default_mcp_server_scripts(self) -> list[str]:
-        env_path = Path(__file__).resolve().with_name(".env")
-        if not env_path.exists():
-            return ["../Day16/server.py"]
-
-        values: dict[str, str] = {}
-        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            values[key.strip()] = value.strip()
-
-        scripts_raw = values.get("MCP_SERVER_SCRIPTS", "")
-        if scripts_raw:
-            try:
-                parsed = json.loads(scripts_raw)
-            except json.JSONDecodeError:
-                parsed = [item.strip() for item in scripts_raw.split(";") if item.strip()]
-            if isinstance(parsed, list):
-                scripts = [str(item).strip() for item in parsed if str(item).strip()]
-                if scripts:
-                    return scripts
-
-        single_script = values.get("MCP_SERVER_SCRIPT", "").strip()
-        if single_script:
-            return [single_script]
-
-        return ["../Day16/server.py"]
-
-    def _collect_mcp_servers(self) -> list[dict[str, Any]]:
-        if not hasattr(self, "mcp_servers_input"):
-            return []
-
-        lines = self.mcp_servers_input.get("1.0", "end").splitlines()
-        result: list[dict[str, Any]] = []
-        for index, line in enumerate(lines, start=1):
-            script = line.strip()
-            if not script:
-                continue
-            result.append(
-                {
-                    "id": f"server_{index}",
-                    "server_script": script,
-                }
-            )
-        return result
 
     def _join_url(self, path: str) -> str:
         return self.base_url_var.get().rstrip("/") + "/" + path.lstrip("/")
@@ -534,8 +478,24 @@ class LLMTesterApp(ctk.CTk):
             self.model_var.set(self.model_values[0])
         self._schedule_session_save()
 
+    def _update_provider_values(self, values: list[str]) -> None:
+        cleaned = [value for value in values if value]
+        if not cleaned:
+            self.provider_values = []
+            self._schedule_session_save()
+            return
+        self.provider_values = cleaned
+        if not self.provider_var.get().strip():
+            self.provider_var.set(self.provider_values[0])
+        elif self.provider_var.get() not in self.provider_values:
+            self.provider_var.set(self.provider_values[0])
+        self._schedule_session_save()
+
     def _selected_model(self) -> str:
         return self.model_var.get().strip()
+
+    def _selected_provider(self) -> str:
+        return self.provider_var.get().strip()
 
     def _reset_request_context(self) -> None:
         self.session.close()
@@ -544,14 +504,14 @@ class LLMTesterApp(ctk.CTk):
         self.chat_transcript.clear()
         self.last_raw_response = None
         self.conversation_id_var.set(str(uuid.uuid4()))
-        self._update_mcp_panels(None)
+        self._update_service_info(None)
         self._render_chat_transcript()
         self._schedule_session_save()
 
     def new_conversation(self) -> None:
         self.conversation_id_var.set(str(uuid.uuid4()))
         self.history.clear()
-        self._update_mcp_panels(None)
+        self._update_service_info(None)
         self.chat_transcript.clear()
         self._render_chat_transcript()
         self.append_chat("system", f"New conversation: {self.conversation_id_var.get()}")
@@ -562,7 +522,7 @@ class LLMTesterApp(ctk.CTk):
         self.history.clear()
         self.chat_transcript.clear()
         self.last_raw_response = None
-        self._update_mcp_panels(None)
+        self._update_service_info(None)
         self._render_chat_transcript()
         self.set_status("chat cleared")
         self._schedule_session_save()
@@ -586,8 +546,8 @@ class LLMTesterApp(ctk.CTk):
         if self.include_history_var.get():
             messages.extend(self.history)
         messages.append({"role": "user", "content": user_message})
-        mcp_servers = self._collect_mcp_servers()
         model = self._selected_model()
+        provider_id = self._selected_provider()
 
         payload: dict[str, Any] = {
             "conversation_id": self.conversation_id_var.get().strip() or str(uuid.uuid4()),
@@ -600,17 +560,11 @@ class LLMTesterApp(ctk.CTk):
             "top_p": 1.0,
             "show_task_transition_in_chat": self.show_task_transition_in_chat_var.get(),
         }
+        if provider_id:
+            payload["provider_id"] = provider_id
 
         if self.require_json_var.get():
             payload["validation"] = {"require_json": True}
-
-        payload["mcp"] = {
-            "enabled": self.enable_mcp_var.get(),
-            "servers": mcp_servers,
-        }
-        payload["rag"] = {
-            "enabled": self.enable_rag_var.get(),
-        }
 
         return payload
 
@@ -647,13 +601,78 @@ class LLMTesterApp(ctk.CTk):
             self.set_status("login first")
             return
 
+        provider_id = self._selected_provider()
+        path = "/models"
+        if provider_id:
+            path += f"?provider_id={quote(provider_id)}"
         self._run_request(
             name="models",
             method="GET",
-            url=self._join_url("/models"),
+            url=self._join_url(path),
             json_payload=None,
             headers=self._auth_headers(),
         )
+
+    def fetch_providers(self) -> None:
+        if not self.access_token:
+            self.set_status("login first")
+            return
+
+        self._run_request(
+            name="providers",
+            method="GET",
+            url=self._join_url("/providers"),
+            json_payload=None,
+            headers=self._auth_headers(),
+        )
+
+    def open_provider_picker(self) -> None:
+        if not self.provider_values:
+            self.set_status("refresh providers first")
+            return
+
+        popup = ctk.CTkToplevel(self)
+        popup.title("Choose provider")
+        popup.geometry("520x420")
+        popup.grid_columnconfigure(0, weight=1)
+        popup.grid_rowconfigure(1, weight=1)
+
+        search_var = ctk.StringVar(value="")
+        search_entry = ctk.CTkEntry(popup, textvariable=search_var, placeholder_text="Filter providers")
+        search_entry.grid(row=0, column=0, padx=12, pady=(12, 8), sticky="ew")
+
+        list_frame = ctk.CTkFrame(popup)
+        list_frame.grid(row=1, column=0, padx=12, pady=(0, 12), sticky="nsew")
+        list_frame.grid_columnconfigure(0, weight=1)
+        list_frame.grid_rowconfigure(0, weight=1)
+
+        scrollbar = tk.Scrollbar(list_frame, orient="vertical")
+        listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, activestyle="dotbox")
+        scrollbar.config(command=listbox.yview)
+        listbox.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        def refresh_list(*_args: Any) -> None:
+            query = search_var.get().strip().lower()
+            listbox.delete(0, "end")
+            for item in self.provider_values:
+                if not query or query in item.lower():
+                    listbox.insert("end", item)
+
+        def choose_selected(_event: Any = None) -> None:
+            selection = listbox.curselection()
+            if not selection:
+                return
+            self.provider_var.set(str(listbox.get(selection[0])))
+            popup.destroy()
+            self.fetch_models()
+
+        search_var.trace_add("write", refresh_list)
+        listbox.bind("<Double-Button-1>", choose_selected)
+        listbox.bind("<Return>", choose_selected)
+
+        refresh_list()
+        search_entry.focus()
 
     def open_model_picker(self) -> None:
         popup = ctk.CTkToplevel(self)
@@ -886,6 +905,8 @@ class LLMTesterApp(ctk.CTk):
             self.logout_button,
             self.new_conv_button,
             self.clear_chat_button,
+            self.choose_provider_button,
+            self.refresh_providers_button,
         ):
             widget.configure(state=state)
 
@@ -918,7 +939,7 @@ class LLMTesterApp(ctk.CTk):
                     )
                     self.set_status(f"{name} successful")
                     self._schedule_session_save()
-                    self.fetch_models()
+                    self.fetch_providers()
                     return
 
             self.append_chat("error", self._format_error(result))
@@ -957,6 +978,26 @@ class LLMTesterApp(ctk.CTk):
             self._schedule_session_save()
             return
 
+        if name == "providers":
+            if result["ok"] and isinstance(result["body"], dict):
+                data = result["body"].get("data")
+                if isinstance(data, list):
+                    providers = [
+                        str(item.get("id"))
+                        for item in data
+                        if isinstance(item, dict) and item.get("id")
+                    ]
+                    self._update_provider_values(providers)
+                    self.set_status(f"providers loaded: {len(self.provider_values)}")
+                    self._schedule_session_save()
+                    self.fetch_models()
+                    return
+
+            self.append_chat("error", self._format_error(result))
+            self.set_status("failed to load providers")
+            self._schedule_session_save()
+            return
+
         if name == "generate":
             if result["ok"]:
                 assistant_text = self._extract_assistant_text(result["body"])
@@ -964,7 +1005,7 @@ class LLMTesterApp(ctk.CTk):
                 task_meta_text = self._extract_task_meta_text(result["body"])
                 if task_meta_text:
                     self.append_chat("task", task_meta_text)
-                self._update_mcp_panels(result["body"])
+                self._update_service_info(result["body"])
                 if result["user_message"]:
                     self.history.append({"role": "user", "content": str(result["user_message"])})
                 self.history.append({"role": "assistant", "content": assistant_text})
@@ -974,56 +1015,112 @@ class LLMTesterApp(ctk.CTk):
                 self.set_status("request failed")
             self._schedule_session_save()
 
-    def _update_mcp_panels(self, body: Any) -> None:
-        if not isinstance(body, dict) or not body.get("mcp_used"):
-            self.mcp_summary_label.configure(
-                text="MCP is idle. Send a request with MCP enabled to inspect connected servers and tools."
+    def _update_service_info(self, body: Any) -> None:
+        if not isinstance(body, dict):
+            self.service_info_summary_label.configure(
+                text="No service response yet. Send a request to inspect runtime details."
             )
-            self._set_textbox(self.mcp_servers_box, "No active MCP servers in the last response.")
-            self._set_textbox(self.mcp_tools_box, "No MCP tools discovered yet.")
+            self._set_textbox(self.service_info_box, "No service information available.")
             return
 
-        servers = body.get("mcp_servers") or []
-        available_tools = body.get("mcp_available_tools") or []
-        tool_calls = body.get("mcp_tool_calls") or []
-
-        self.mcp_summary_label.configure(
+        usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+        latency_ms = body.get("latency_ms")
+        self.service_info_summary_label.configure(
             text=(
-                f"MCP active. Servers: {len(servers)} | "
-                f"tools discovered: {body.get('mcp_tools_offered', 0)} | "
-                f"tool calls executed: {len(tool_calls)}"
+                f"Latency: {latency_ms if latency_ms is not None else '-'} ms | "
+                f"RAG: {'yes' if body.get('rag_used') else 'no'} | "
+                f"MCP: {'yes' if body.get('mcp_used') else 'no'} | "
+                f"tokens: {usage.get('total_tokens', '-')}"
             )
         )
 
-        server_lines = [f"{index}. {server}" for index, server in enumerate(servers, start=1)]
+        lines = [
+            "Request",
+            f"- request_id: {body.get('request_id')}",
+            f"- provider_id: {body.get('provider_id')}",
+            f"- model: {body.get('model')}",
+            f"- finish_reason: {body.get('finish_reason')}",
+            f"- latency_ms: {latency_ms}",
+            "",
+            "Usage",
+            f"- prompt_tokens: {usage.get('prompt_tokens')}",
+            f"- completion_tokens: {usage.get('completion_tokens')}",
+            f"- total_tokens: {usage.get('total_tokens')}",
+            "",
+            "Memory",
+            f"- short_term: {body.get('short_term_messages_used', 0)} messages",
+            f"- working_memory: {body.get('working_memory_used')}",
+            f"- long_term_summary: {body.get('long_term_summary_used')}",
+            f"- long_term_facts: {body.get('long_term_facts_count', 0)}",
+            f"- memory_retrieval: {body.get('retrieval_messages_used', 0)} items",
+            "",
+            "RAG",
+            f"- used: {body.get('rag_used')}",
+            f"- strategy: {body.get('rag_strategy')}",
+            f"- chunks: {body.get('rag_chunks_used', 0)}",
+        ]
+
+        sources = body.get("sources") or []
+        if sources:
+            lines.append("- sources:")
+            for source in sources[:8]:
+                if isinstance(source, dict):
+                    lines.append(
+                        f"  - {source.get('source')} | {source.get('section')} | {source.get('chunk_id')}"
+                    )
+
+        lines.extend(
+            [
+                "",
+                "Task",
+                f"- state: {self._compact_task_state(body.get('task_state'))}",
+                f"- transition: {self._compact_task_transition(body.get('task_transition'))}",
+                f"- error: {body.get('task_transition_error')}",
+                "",
+                "Invariants",
+                f"- used: {body.get('project_invariants_used')}",
+                f"- count: {body.get('project_invariants_count', 0)}",
+                f"- passed: {body.get('invariant_check_passed')}",
+                f"- violations: {', '.join(str(item) for item in body.get('invariant_violations') or []) or '-'}",
+                "",
+                "MCP",
+                f"- used: {body.get('mcp_used')}",
+                f"- servers: {len(body.get('mcp_servers') or [])}",
+                f"- tools offered: {body.get('mcp_tools_offered', 0)}",
+                f"- tool calls: {len(body.get('mcp_tool_calls') or [])}",
+            ]
+        )
+
+        mcp_servers = body.get("mcp_servers") or []
+        if mcp_servers:
+            lines.append("- server list:")
+            lines.extend(f"  - {server}" for server in mcp_servers[:8])
+
+        tool_calls = body.get("mcp_tool_calls") or []
         if tool_calls:
-            server_lines.append("")
-            server_lines.append("Executed calls:")
-            server_lines.extend(f"- {call}" for call in tool_calls)
-        self._set_textbox(self.mcp_servers_box, "\n".join(server_lines) or "No servers reported.")
+            lines.append("- executed calls:")
+            lines.extend(f"  - {call}" for call in tool_calls[:12])
 
-        grouped: dict[str, list[dict[str, Any]]] = {}
-        for item in available_tools:
-            server_id = str(item.get("server_id") or "unknown")
-            grouped.setdefault(server_id, []).append(item)
+        self._set_textbox(self.service_info_box, "\n".join(lines))
 
-        tool_lines: list[str] = []
-        if grouped:
-            for server_id, items in grouped.items():
-                tool_lines.append(f"[{server_id}]")
-                for item in items:
-                    tool_lines.append(f"- {item.get('tool_alias')} ({item.get('tool_name')})")
-                    description = str(item.get("description") or "").strip()
-                    if description:
-                        tool_lines.append(f"  {description}")
-                tool_lines.append("")
-        else:
-            for item in body.get("mcp_tool_trace") or []:
-                tool_lines.append(
-                    f"- {item.get('tool_alias') or item.get('tool_name')} | server={item.get('server_id')}"
-                )
+    def _compact_task_state(self, task_state: Any) -> str:
+        if not isinstance(task_state, dict):
+            return "-"
+        return (
+            f"{task_state.get('task_id')} | "
+            f"{task_state.get('status')}/{task_state.get('stage')} | "
+            f"next={task_state.get('expected_action')}"
+        )
 
-        self._set_textbox(self.mcp_tools_box, "\n".join(tool_lines).strip() or "No tools reported.")
+    def _compact_task_transition(self, transition: Any) -> str:
+        if not isinstance(transition, dict):
+            return "-"
+        if not transition.get("applied"):
+            return f"not applied ({transition.get('reason') or 'no event'})"
+        return (
+            f"{transition.get('from_stage')} -> {transition.get('to_stage')} "
+            f"({transition.get('event')})"
+        )
 
     def _extract_assistant_text(self, body: Any) -> str:
         if isinstance(body, dict):
@@ -1094,6 +1191,7 @@ class LLMTesterApp(ctk.CTk):
             self.timeout_var,
             self.email_var,
             self.register_email_var,
+            self.provider_var,
             self.model_var,
             self.branch_id_var,
             self.task_id_var,
@@ -1101,14 +1199,11 @@ class LLMTesterApp(ctk.CTk):
             self.include_history_var,
             self.require_json_var,
             self.show_task_transition_in_chat_var,
-            self.enable_mcp_var,
-            self.enable_rag_var,
         )
         for variable in tracked_vars:
             variable.trace_add("write", self._on_session_var_changed)
 
         self.message_input.bind("<KeyRelease>", self._on_session_widget_changed, add="+")
-        self.mcp_servers_input.bind("<KeyRelease>", self._on_session_widget_changed, add="+")
 
     def _on_session_var_changed(self, *_args: Any) -> None:
         self._schedule_session_save()
@@ -1130,6 +1225,8 @@ class LLMTesterApp(ctk.CTk):
             "timeout": self.timeout_var.get(),
             "email": self.email_var.get(),
             "register_email": self.register_email_var.get(),
+            "provider": self.provider_var.get(),
+            "provider_values": self.provider_values,
             "model": self.model_var.get(),
             "model_values": self.model_values,
             "branch_id": self.branch_id_var.get(),
@@ -1138,14 +1235,11 @@ class LLMTesterApp(ctk.CTk):
             "include_history": self.include_history_var.get(),
             "require_json": self.require_json_var.get(),
             "show_task_transition_in_chat": self.show_task_transition_in_chat_var.get(),
-            "enable_mcp": self.enable_mcp_var.get(),
-            "enable_rag": self.enable_rag_var.get(),
             "access_token": self.access_token,
             "current_user": self.current_user,
             "history": self.history,
             "chat_transcript": self.chat_transcript,
             "message_draft": self.message_input.get("1.0", "end").strip(),
-            "mcp_server_scripts": [item.get("server_script") for item in self._collect_mcp_servers()],
         }
 
     def _save_session_state(self) -> None:
@@ -1179,7 +1273,12 @@ class LLMTesterApp(ctk.CTk):
             self.timeout_var.set(str(raw_state.get("timeout") or self.timeout_var.get()))
             self.email_var.set(str(raw_state.get("email") or ""))
             self.register_email_var.set(str(raw_state.get("register_email") or ""))
+            self.provider_var.set(str(raw_state.get("provider") or self.provider_var.get()))
             self.model_var.set(str(raw_state.get("model") or self.model_var.get()))
+
+            provider_values = raw_state.get("provider_values")
+            if isinstance(provider_values, list):
+                self._update_provider_values([str(item) for item in provider_values if str(item).strip()])
 
             model_values = raw_state.get("model_values")
             if isinstance(model_values, list):
@@ -1200,9 +1299,6 @@ class LLMTesterApp(ctk.CTk):
                     )
                 )
             )
-            self.enable_mcp_var.set(bool(raw_state.get("enable_mcp", self.enable_mcp_var.get())))
-            self.enable_rag_var.set(bool(raw_state.get("enable_rag", self.enable_rag_var.get())))
-
             token = raw_state.get("access_token")
             user = raw_state.get("current_user")
             if isinstance(token, str) and isinstance(user, dict):
@@ -1234,15 +1330,6 @@ class LLMTesterApp(ctk.CTk):
                     and isinstance(item.get("content"), str)
                 ]
             self._render_chat_transcript()
-
-            scripts = raw_state.get("mcp_server_scripts")
-            if isinstance(scripts, list):
-                cleaned_scripts = [str(item).strip() for item in scripts if str(item).strip()]
-                self.mcp_servers_input.delete("1.0", "end")
-                self.mcp_servers_input.insert(
-                    "1.0",
-                    "\n".join(cleaned_scripts or self.default_mcp_server_scripts),
-                )
 
             message_draft = str(raw_state.get("message_draft") or "")
             if message_draft:

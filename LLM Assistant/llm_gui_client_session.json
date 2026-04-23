@@ -1,9 +1,14 @@
 {
   "base_url": "http://127.0.0.1:8000",
   "theme": "System",
-  "timeout": "60",
+  "timeout": "600",
   "email": "kv@itech74.ru",
   "register_email": "",
+  "provider": "ollama",
+  "provider_values": [
+    "ollama",
+    "cloud"
+  ],
   "model": "qwen2.5:7b-instruct",
   "model_values": [
     "qwen2.5:7b-instruct",
@@ -13,13 +18,11 @@
   ],
   "branch_id": "main",
   "task_id": "",
-  "conversation_id": "52358ddb-b67f-411b-91a7-42c0d5e45235",
+  "conversation_id": "ac9cd472-77c0-40e9-8331-972901747744",
   "include_history": false,
   "require_json": false,
   "show_task_transition_in_chat": false,
-  "enable_mcp": false,
-  "enable_rag": false,
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMzE2OGJhOC03YmM1LTRmMjktOWYwZS03MWM4NTQ0OTY0MWUiLCJlbWFpbCI6Imt2QGl0ZWNoNzQucnUiLCJpYXQiOjE3NzY3ODQwMTgsImV4cCI6MTc3Njg3MDQxOH0.eDocEvQ5PEAiv7fZhPg5zXP_60OLMPWVyYCtL-gCNYo",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMzE2OGJhOC03YmM1LTRmMjktOWYwZS03MWM4NTQ0OTY0MWUiLCJlbWFpbCI6Imt2QGl0ZWNoNzQucnUiLCJpYXQiOjE3NzY5MzA2MzYsImV4cCI6MTc3NzAxNzAzNn0.WV4xChRNuSu1W296xcwMGjxkZk3IncPHZRDhk1ill_8",
   "current_user": {
     "id": "13168ba8-7bc5-4f29-9f0e-71c85449641e",
     "email": "kv@itech74.ru",
@@ -28,87 +31,26 @@
   "history": [
     {
       "role": "user",
-      "content": "Тест"
+      "content": "Как включить сервисный режим"
     },
     {
       "role": "assistant",
-      "content": "Привет! Если у вас есть вопросы или задачи, связанные с тестированием оборудования Sigur (например, подключения турникетов, считывателей карт и других компонентов), я здесь для того, чтобы помочь. Какой именно тест вы хотели провести? Или у вас есть конкретные вопросы по работе с оборудованием Sigur?"
-    },
-    {
-      "role": "user",
-      "content": "Test"
-    },
-    {
-      "role": "assistant",
-      "content": "Привет! Понял, что вам нужна помощь с тестированием оборудования Sigur. Чтобы лучше понять ваш запрос, могли бы вы уточнить:\n\n1. **Тип теста**: Это может быть функциональный тест, нагрузочный тест или другой вид тестирования.\n2. **Оборудование**: Вы хотите протестировать конкретное оборудование, например турникет Sigur E510 или считыватель карт?\n3. **Цель теста**: Что именно вы хотите проверить? Например, работу подключения оборудования к контроллеру, его надежность при нагрузке, скорость отклика и т.д.\n\nЕсли у вас есть конкретные вопросы или задачи по тестированию, пожалуйста, дайте мне знать!"
-    },
-    {
-      "role": "user",
-      "content": "Как подключить электромагнитный замок?"
-    },
-    {
-      "role": "assistant",
-      "content": "Подключение электромагнитного замка к контроллеру СКУД Sigur E300H выполняется следующим образом:\n\n1. **Связь с контроллером**:\n   - Подключите считыватель (кармашек) к контроллеру Sigur E300H.\n   - Убедитесь, что у вас есть доступ к клиентскому месту системы для управления состояниями двери.\n\n2. **Подключение электропитания**:\n   - Подключите основную линию питания замка к контроллеру Sigur E300H. Эта линия будет обеспечивать питание замка при разрешении доступа.\n   - Подключите дежурную линию питания к контроллеру Sigur E300H, которая будет работать постоянно и поддерживать дежурное освещение.\n\n3. **Подключение реле**:\n   - Установите реле, которое будет управлять замком.\n   - Подключите вход реле к линии питания контроллера Sigur E300H (основная линия).\n   - Подключите выход реле к электромагнитному замку.\n\n4. **Настройка параметров**:\n   - В клиентском месте системы настройте параметры доступа для двери, включая время ожидания прохода и другие необходимые настройки.\n   - Убедитесь, что при считывании разрешенного ключа или карты дверь открывается через реле.\n\n5. **Проверка работы**:\n   - Проверьте работу системы: при поднесении разрешенной карты к считывателю дверь должна открыться на время ожидания прохода, а затем автоматически запереться.\n   - Убедитесь, что дежурное освещение включается при поднесении карты и выключается после изъятия ее из кармашка.\n\nТаким образом, электромагнитный замок будет корректно работать с контроллером Sigur E300H для управления доступом.\n\nИсточники:\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 20 | Sigur_E300H-structure-019\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 79 | Sigur_E510-structure-078\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 81 | Sigur_E510-structure-080\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 31 | Sigur_E300H-structure-030\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 32 | Sigur_E300H-structure-031\n\nЦитаты:\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 20 | Sigur_E300H-structure-019] \"Контроллер СКУД Sigur E300H 9. Подключение замка двери, общие сведения. Замок управляется с помощью реле « RELE1», расположенного на плате контроллера. Оно имеет одну группу контактов, работающих на переключение ( COM...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 79 | Sigur_E510-structure-078] \"Контроллер Sigur E510. Описание и инструкция по эксплуатации. Стр.79 из 131 • • • • • • • • Настройки точки доступа: В программе «Клиент» выделите на вкладке «Оборудование» нужный нам контроллер в списке, нажмите кноп...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 81 | Sigur_E510-structure-080] \"Контроллер Sigur E510. Описание и инструкция по эксплуатации. Стр.81 из 131 • • • • • • Настройки точки доступа: В программе «Клиент» выделите на вкладке «Оборудование» нужный контроллер в списке, нажмите кнопку «Наст...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 31 | Sigur_E300H-structure-030] \"Контроллер СКУД Sigur E300H 14.2 Логика работы двери. Дверь, подключённая к контроллеру, может работать в одном из четырёх режимов: нормальном, запертом, заблокированном и разблокированном. Реакции контроллера на собы...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 32 | Sigur_E300H-structure-031] \"Контроллер СКУД Sigur E300H розетки и т. д.). Пока карта вставлена в кармашек, основная линия остаётся включённой. Дежурная линия остаётся включённой всегда, когда включена основная. Как только ОД изъял карту из карма...\""
+      "content": "Для включения сервисного режима Sigur E510 контроллера выполните следующие шаги:\n\n1. Откройте файл `C:\\Users\\voronkov.WS-042\\.tcgui.cfg` в текстовом редакторе.\n2. Добавьте строку `DevelMode=1` после строки `ServerList.0.IP=192.168.13.20`.\n3. Сохраните изменения в файле.\n4. Запустите Sigur клиент и выберите меню разработчика (нажмите Alt+D).\n\nЦитаты:\n- \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20\" | source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | chunk_id: 2\n\nИсточники:\n- source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | section: Paragraph block 1 | chunk_id: 2\n\nИсточники:\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000\n\nЦитаты:\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155] \"Руководство пользователя СКУД «Sigur» ● Табельный номер ● Фотография ● Фотография в base64 ● Пропуск (в формате W26) ● Пропуск (десятичный) ● Пропуск (шестнадцатеричный) ● Версия фото ● Основной режим ● Список режимов...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000] \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20 сохраняем в программе sigur клиент фаил => меню разработчика(alt+D)\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000] \"ПАСПОРТ Источник бесперебойного питания с функциями сетевого солнечного инвертора Эко-МАСТЕР-1800 (далее по тексту – “гибридный инвертор” или “ИБП”) (гибридный инвертор, сетевой grid-tie батарейный, hybrid inverter, и...\""
     }
   ],
   "chat_transcript": [
     {
       "role": "system",
-      "content": "New conversation: 52358ddb-b67f-411b-91a7-42c0d5e45235"
+      "content": "New conversation: ac9cd472-77c0-40e9-8331-972901747744"
     },
     {
       "role": "user",
-      "content": "Тест"
+      "content": "Как включить сервисный режим"
     },
     {
       "role": "assistant",
-      "content": "Привет! Если у вас есть вопросы или задачи, связанные с тестированием оборудования Sigur (например, подключения турникетов, считывателей карт и других компонентов), я здесь для того, чтобы помочь. Какой именно тест вы хотели провести? Или у вас есть конкретные вопросы по работе с оборудованием Sigur?"
-    },
-    {
-      "role": "task",
-      "content": "State: task_id=52358ddb-b67f-411b-91a7-42c0d5e45235 | status=active | stage=execution | expected_action=user_reply\nAllowed events: request_user_input, pause, cancel\nCurrent step: Track the current dialog goal, constraints, and references"
-    },
-    {
-      "role": "system",
-      "content": "{\n  \"id\": \"13168ba8-7bc5-4f29-9f0e-71c85449641e\",\n  \"email\": \"kv@itech74.ru\",\n  \"is_active\": true\n}"
-    },
-    {
-      "role": "system",
-      "content": "Health OK (200)\n{\n  \"status\": \"ok\",\n  \"service\": \"agent-memory-gateway\",\n  \"version\": \"0.1.0\",\n  \"database\": \"ok\",\n  \"database_error\": null,\n  \"default_model\": \"openai/gpt-4o-mini\",\n  \"time\": \"2026-04-21T15:08:04.624092+00:00\"\n}"
-    },
-    {
-      "role": "system",
-      "content": "Health OK (200)\n{\n  \"status\": \"ok\",\n  \"service\": \"agent-memory-gateway\",\n  \"version\": \"0.1.0\",\n  \"database\": \"ok\",\n  \"database_error\": null,\n  \"default_model\": \"qwen2.5:7b-instruct\",\n  \"time\": \"2026-04-21T15:13:44.752080+00:00\"\n}"
-    },
-    {
-      "role": "user",
-      "content": "Test"
-    },
-    {
-      "role": "assistant",
-      "content": "Привет! Понял, что вам нужна помощь с тестированием оборудования Sigur. Чтобы лучше понять ваш запрос, могли бы вы уточнить:\n\n1. **Тип теста**: Это может быть функциональный тест, нагрузочный тест или другой вид тестирования.\n2. **Оборудование**: Вы хотите протестировать конкретное оборудование, например турникет Sigur E510 или считыватель карт?\n3. **Цель теста**: Что именно вы хотите проверить? Например, работу подключения оборудования к контроллеру, его надежность при нагрузке, скорость отклика и т.д.\n\nЕсли у вас есть конкретные вопросы или задачи по тестированию, пожалуйста, дайте мне знать!"
-    },
-    {
-      "role": "task",
-      "content": "State: task_id=52358ddb-b67f-411b-91a7-42c0d5e45235 | status=active | stage=execution | expected_action=user_reply\nAllowed events: request_user_input, pause, cancel\nCurrent step: Track the current dialog goal, constraints, and references"
-    },
-    {
-      "role": "user",
-      "content": "Как подключить электромагнитный замок?"
-    },
-    {
-      "role": "assistant",
-      "content": "Подключение электромагнитного замка к контроллеру СКУД Sigur E300H выполняется следующим образом:\n\n1. **Связь с контроллером**:\n   - Подключите считыватель (кармашек) к контроллеру Sigur E300H.\n   - Убедитесь, что у вас есть доступ к клиентскому месту системы для управления состояниями двери.\n\n2. **Подключение электропитания**:\n   - Подключите основную линию питания замка к контроллеру Sigur E300H. Эта линия будет обеспечивать питание замка при разрешении доступа.\n   - Подключите дежурную линию питания к контроллеру Sigur E300H, которая будет работать постоянно и поддерживать дежурное освещение.\n\n3. **Подключение реле**:\n   - Установите реле, которое будет управлять замком.\n   - Подключите вход реле к линии питания контроллера Sigur E300H (основная линия).\n   - Подключите выход реле к электромагнитному замку.\n\n4. **Настройка параметров**:\n   - В клиентском месте системы настройте параметры доступа для двери, включая время ожидания прохода и другие необходимые настройки.\n   - Убедитесь, что при считывании разрешенного ключа или карты дверь открывается через реле.\n\n5. **Проверка работы**:\n   - Проверьте работу системы: при поднесении разрешенной карты к считывателю дверь должна открыться на время ожидания прохода, а затем автоматически запереться.\n   - Убедитесь, что дежурное освещение включается при поднесении карты и выключается после изъятия ее из кармашка.\n\nТаким образом, электромагнитный замок будет корректно работать с контроллером Sigur E300H для управления доступом.\n\nИсточники:\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 20 | Sigur_E300H-structure-019\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 79 | Sigur_E510-structure-078\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 81 | Sigur_E510-structure-080\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 31 | Sigur_E300H-structure-030\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 32 | Sigur_E300H-structure-031\n\nЦитаты:\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 20 | Sigur_E300H-structure-019] \"Контроллер СКУД Sigur E300H 9. Подключение замка двери, общие сведения. Замок управляется с помощью реле « RELE1», расположенного на плате контроллера. Оно имеет одну группу контактов, работающих на переключение ( COM...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 79 | Sigur_E510-structure-078] \"Контроллер Sigur E510. Описание и инструкция по эксплуатации. Стр.79 из 131 • • • • • • • • Настройки точки доступа: В программе «Клиент» выделите на вкладке «Оборудование» нужный нам контроллер в списке, нажмите кноп...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E510.pdf | Page 81 | Sigur_E510-structure-080] \"Контроллер Sigur E510. Описание и инструкция по эксплуатации. Стр.81 из 131 • • • • • • Настройки точки доступа: В программе «Клиент» выделите на вкладке «Оборудование» нужный контроллер в списке, нажмите кнопку «Наст...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 31 | Sigur_E300H-structure-030] \"Контроллер СКУД Sigur E300H 14.2 Логика работы двери. Дверь, подключённая к контроллеру, может работать в одном из четырёх режимов: нормальном, запертом, заблокированном и разблокированном. Реакции контроллера на собы...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur_E300H.pdf | Page 32 | Sigur_E300H-structure-031] \"Контроллер СКУД Sigur E300H розетки и т. д.). Пока карта вставлена в кармашек, основная линия остаётся включённой. Дежурная линия остаётся включённой всегда, когда включена основная. Как только ОД изъял карту из карма...\""
-    },
-    {
-      "role": "task",
-      "content": "State: task_id=52358ddb-b67f-411b-91a7-42c0d5e45235 | status=active | stage=execution | expected_action=user_reply\nAllowed events: request_user_input, pause, cancel\nCurrent step: Track the current dialog goal, constraints, and references"
+      "content": "Для включения сервисного режима Sigur E510 контроллера выполните следующие шаги:\n\n1. Откройте файл `C:\\Users\\voronkov.WS-042\\.tcgui.cfg` в текстовом редакторе.\n2. Добавьте строку `DevelMode=1` после строки `ServerList.0.IP=192.168.13.20`.\n3. Сохраните изменения в файле.\n4. Запустите Sigur клиент и выберите меню разработчика (нажмите Alt+D).\n\nЦитаты:\n- \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20\" | source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | chunk_id: 2\n\nИсточники:\n- source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | section: Paragraph block 1 | chunk_id: 2\n\nИсточники:\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000\n\nЦитаты:\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155] \"Руководство пользователя СКУД «Sigur» ● Табельный номер ● Фотография ● Фотография в base64 ● Пропуск (в формате W26) ● Пропуск (десятичный) ● Пропуск (шестнадцатеричный) ● Версия фото ● Основной режим ● Список режимов...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000] \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20 сохраняем в программе sigur клиент фаил => меню разработчика(alt+D)\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000] \"ПАСПОРТ Источник бесперебойного питания с функциями сетевого солнечного инвертора Эко-МАСТЕР-1800 (далее по тексту – “гибридный инвертор” или “ИБП”) (гибридный инвертор, сетевой grid-tie батарейный, hybrid inverter, и...\""
     }
   ],
-  "message_draft": "",
-  "mcp_server_scripts": [
-    "../MCP/mqtt_collect/server.py",
-    "../MCP/telegram_sender/server.py",
-    "../MCP/weather_forecast/server.py"
-  ]
+  "message_draft": ""
 }

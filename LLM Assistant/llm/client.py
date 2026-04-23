@@ -7,7 +7,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from config import LLM_API_KEY, LLM_BASE_URL, REQUEST_TIMEOUT_SECONDS
+from config import DEFAULT_LLM_PROVIDER, LLM_PROVIDERS, REQUEST_TIMEOUT_SECONDS
 from llm.mcp_client import MCPClientSession
 from llm.schemas import ChatMessage, MCPServerConfig, MCPSettings
 
@@ -19,11 +19,43 @@ from orchestration import ExecutionPolicy, OpenAIChatCompletionsModel, Orchestra
 from orchestration import ChatMessage as OrchestrationChatMessage
 from orchestration import normalize_server_id
 
-client = OpenAI(
-    api_key=LLM_API_KEY or "local-no-key-required",
-    base_url=LLM_BASE_URL,
-    timeout=REQUEST_TIMEOUT_SECONDS,
-)
+_clients: dict[str, OpenAI] = {}
+
+
+def list_llm_providers() -> list[dict[str, str]]:
+    return [
+        {
+            "id": provider["id"],
+            "name": provider.get("name") or provider["id"],
+            "base_url": provider["base_url"],
+            "default_model": provider.get("default_model") or "",
+        }
+        for provider in LLM_PROVIDERS
+    ]
+
+
+def resolve_provider_id(provider_id: str | None) -> str:
+    requested = (provider_id or DEFAULT_LLM_PROVIDER).strip() or DEFAULT_LLM_PROVIDER
+    provider_ids = {provider["id"] for provider in LLM_PROVIDERS}
+    if requested in provider_ids:
+        return requested
+    if LLM_PROVIDERS:
+        return LLM_PROVIDERS[0]["id"]
+    return DEFAULT_LLM_PROVIDER
+
+
+def get_openai_client(provider_id: str | None = None) -> OpenAI:
+    resolved_provider_id = resolve_provider_id(provider_id)
+    if resolved_provider_id in _clients:
+        return _clients[resolved_provider_id]
+
+    provider = next(item for item in LLM_PROVIDERS if item["id"] == resolved_provider_id)
+    _clients[resolved_provider_id] = OpenAI(
+        api_key=provider.get("api_key") or "local-no-key-required",
+        base_url=provider["base_url"],
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    return _clients[resolved_provider_id]
 
 
 @dataclass(slots=True)
@@ -80,6 +112,7 @@ def _build_completion_params(
 
 def call_chat_completion(
     *,
+    provider_id: str | None = None,
     model: str,
     messages: list[ChatMessage | dict[str, Any]],
     temperature: float,
@@ -101,11 +134,12 @@ def call_chat_completion(
         user_id=user_id,
         tools=tools,
     )
-    return client.chat.completions.create(**params)
+    return get_openai_client(provider_id).chat.completions.create(**params)
 
 
 def call_chat_completion_with_mcp(
     *,
+    provider_id: str | None = None,
     model: str,
     messages: list[ChatMessage | dict[str, Any]],
     temperature: float,
@@ -119,6 +153,7 @@ def call_chat_completion_with_mcp(
     server_configs = _resolve_mcp_server_configs(mcp_settings)
     if not mcp_settings or not mcp_settings.enabled or not server_configs:
         response = call_chat_completion(
+            provider_id=provider_id,
             model=model,
             messages=messages,
             temperature=temperature,
@@ -157,7 +192,7 @@ def call_chat_completion_with_mcp(
     request_options.pop("user", None)
 
     orchestration_model = OpenAIChatCompletionsModel(
-        client=client,
+        client=get_openai_client(provider_id),
         model=model,
         request_options=request_options,
     )

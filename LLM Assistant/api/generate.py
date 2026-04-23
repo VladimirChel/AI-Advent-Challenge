@@ -4,12 +4,14 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 
 from config import (
-    MCP_ENABLED_BY_DEFAULT,
+    MCP_ENABLED,
     MCP_MAX_TOOL_ROUNDTRIPS,
     MCP_SERVER_SCRIPT,
     MCP_SERVER_SCRIPTS,
     MCP_TOOL_CALL_TIMEOUT_SECONDS,
     MCP_WAIT_AFTER_START_SECONDS,
+    SUMMARY_MAX_INPUT_MESSAGES,
+    TASK_AUTO_ID_FOR_RAG_CHAT,
 )
 from auth.dependencies import get_current_user
 from auth.schemas import PublicUser
@@ -19,7 +21,12 @@ from invariants.service import (
     check_response_against_invariants,
     load_project_invariants,
 )
-from llm.client import aggregate_usage, call_chat_completion_with_mcp, extract_text_from_chat_completion
+from llm.client import (
+    aggregate_usage,
+    call_chat_completion_with_mcp,
+    extract_text_from_chat_completion,
+    resolve_provider_id,
+)
 from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServerConfig, MCPSettings, RAGSettings
 from llm.service import validate_output
 from memory.models import MemoryPolicy
@@ -81,7 +88,7 @@ def resolve_mcp_settings(payload: GenerateRequest) -> MCPSettings | None:
             }
         )
 
-    if not MCP_ENABLED_BY_DEFAULT:
+    if not MCP_ENABLED:
         return None
 
     default_servers = _build_default_mcp_servers()
@@ -153,12 +160,13 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     conversation_id = payload.conversation_id or str(uuid.uuid4())
     branch_id = payload.branch_id.strip() or "main"
     user_id = current_user.id
+    effective_provider_id = resolve_provider_id(payload.provider_id)
 
     assert_conversation_access(conversation_id=conversation_id, user_id=user_id)
 
     policy = MemoryPolicy()
     effective_task_id = payload.task_id
-    if payload.chat_mode == "rag_task_chat" and not effective_task_id:
+    if TASK_AUTO_ID_FOR_RAG_CHAT and payload.chat_mode == "rag_task_chat" and not effective_task_id:
         effective_task_id = conversation_id
 
     rag_settings = resolve_rag_settings(payload.rag)
@@ -183,6 +191,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     mcp_settings = resolve_mcp_settings(payload)
 
     response, mcp_execution = call_chat_completion_with_mcp(
+        provider_id=effective_provider_id,
         model=payload.model,
         messages=full_messages,
         temperature=payload.temperature,
@@ -220,6 +229,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
             user_messages=payload.messages,
             assistant_response=content,
             model=payload.model,
+            provider_id=effective_provider_id,
             user_id=user_id,
         )
         if not invariant_check.allowed:
@@ -249,7 +259,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     recent_messages, latest_seq_no = get_recent_messages_for_summary(
         conversation_id=conversation_id,
         branch_id=branch_id,
-        limit=16,
+        limit=SUMMARY_MAX_INPUT_MESSAGES,
     )
     summary = build_summary_from_messages(recent_messages)
     if summary:
@@ -268,6 +278,7 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         conversation_id=conversation_id,
         branch_id=branch_id,
         task_id=effective_task_id,
+        provider_id=effective_provider_id,
         model=payload.model,
         content=content,
         finish_reason=finish_reason,
