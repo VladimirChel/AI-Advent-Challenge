@@ -149,8 +149,38 @@ config.cmd
 
 The configurator groups settings by Server, LLM, Memory, RAG, and MCP. It creates a timestamped `.env` backup before saving and includes a local Ollama preset for smaller prompts.
 
+### Stateless / Guest Mode
+
+If you need a mode without authentication and without persistent memory, enable:
+
+```env
+STATELESS_MODE=true
+```
+
+This shortcut implies:
+
+- `AUTH_ENABLED=false`
+- `MEMORY_ENABLED=false`
+- PostgreSQL is no longer required for startup
+
+If you need finer control, you can also set the flags separately:
+
+```env
+AUTH_ENABLED=false
+MEMORY_ENABLED=false
+```
+
+In this mode:
+
+- `/generate`, `/models`, and `/providers` work without Bearer token;
+- the assistant does not load or save short-term, working, or long-term memory;
+- conversations, summaries, facts, task memory, and memory chunks are not written to the database.
+
 Key parameters:
 
+- `STATELESS_MODE` - shortcut for guest mode without auth and persistent memory.
+- `AUTH_ENABLED` - require JWT authentication for protected endpoints when `true`.
+- `MEMORY_ENABLED` - enable memory loading and persistence pipeline when `true`.
 - `LLM_API_KEY` - API key for the LLM provider. Optional for local servers that ignore authorization headers. Legacy name: `PROXYAPI_API_KEY`.
 - `LLM_BASE_URL` - base URL of the OpenAI-compatible provider or local server. Legacy name: `PROXYAPI_BASE_URL`.
 - `DEFAULT_LLM_PROVIDER` - provider profile used when the client does not send `provider_id`.

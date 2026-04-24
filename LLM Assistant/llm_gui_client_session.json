@@ -28,29 +28,7 @@
     "email": "kv@itech74.ru",
     "is_active": true
   },
-  "history": [
-    {
-      "role": "user",
-      "content": "Как включить сервисный режим"
-    },
-    {
-      "role": "assistant",
-      "content": "Для включения сервисного режима Sigur E510 контроллера выполните следующие шаги:\n\n1. Откройте файл `C:\\Users\\voronkov.WS-042\\.tcgui.cfg` в текстовом редакторе.\n2. Добавьте строку `DevelMode=1` после строки `ServerList.0.IP=192.168.13.20`.\n3. Сохраните изменения в файле.\n4. Запустите Sigur клиент и выберите меню разработчика (нажмите Alt+D).\n\nЦитаты:\n- \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20\" | source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | chunk_id: 2\n\nИсточники:\n- source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | section: Paragraph block 1 | chunk_id: 2\n\nИсточники:\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000\n\nЦитаты:\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155] \"Руководство пользователя СКУД «Sigur» ● Табельный номер ● Фотография ● Фотография в base64 ● Пропуск (в формате W26) ● Пропуск (десятичный) ● Пропуск (шестнадцатеричный) ● Версия фото ● Основной режим ● Список режимов...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000] \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20 сохраняем в программе sigur клиент фаил => меню разработчика(alt+D)\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000] \"ПАСПОРТ Источник бесперебойного питания с функциями сетевого солнечного инвертора Эко-МАСТЕР-1800 (далее по тексту – “гибридный инвертор” или “ИБП”) (гибридный инвертор, сетевой grid-tie батарейный, hybrid inverter, и...\""
-    }
-  ],
-  "chat_transcript": [
-    {
-      "role": "system",
-      "content": "New conversation: ac9cd472-77c0-40e9-8331-972901747744"
-    },
-    {
-      "role": "user",
-      "content": "Как включить сервисный режим"
-    },
-    {
-      "role": "assistant",
-      "content": "Для включения сервисного режима Sigur E510 контроллера выполните следующие шаги:\n\n1. Откройте файл `C:\\Users\\voronkov.WS-042\\.tcgui.cfg` в текстовом редакторе.\n2. Добавьте строку `DevelMode=1` после строки `ServerList.0.IP=192.168.13.20`.\n3. Сохраните изменения в файле.\n4. Запустите Sigur клиент и выберите меню разработчика (нажмите Alt+D).\n\nЦитаты:\n- \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20\" | source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | chunk_id: 2\n\nИсточники:\n- source: D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | section: Paragraph block 1 | chunk_id: 2\n\nИсточники:\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000\n- D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000\n\nЦитаты:\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\SigurUserGuide.pdf | Page 156 | SigurUserGuide-structure-155] \"Руководство пользователя СКУД «Sigur» ● Табельный номер ● Фотография ● Фотография в base64 ● Пропуск (в формате W26) ● Пропуск (десятичный) ● Пропуск (шестнадцатеричный) ● Версия фото ● Основной режим ● Список режимов...\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\Sigur сервисный режим контролера.txt | Paragraph block 1 | Sigur сервисный режим контролера-structure-000] \"в файле C:\\Users\\voronkov.WS-042\\.tcgui.cfg добавить строку DevelMode=1 после строки ServerList.0.IP=192.168.13.20 сохраняем в программе sigur клиент фаил => меню разработчика(alt+D)\"\n- [D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day21\\documents\\eco-master-1800-hybrid-inverter-solar-manual.pdf | Page 1 | eco-master-1800-hybrid-inverter-solar-manual-structure-000] \"ПАСПОРТ Источник бесперебойного питания с функциями сетевого солнечного инвертора Эко-МАСТЕР-1800 (далее по тексту – “гибридный инвертор” или “ИБП”) (гибридный инвертор, сетевой grid-tie батарейный, hybrid inverter, и...\""
-    }
-  ],
+  "history": [],
+  "chat_transcript": [],
   "message_draft": ""
 }

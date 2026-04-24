@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from config import ANONYMOUS_USER_EMAIL, ANONYMOUS_USER_ID, AUTH_ENABLED
 from auth.schemas import PublicUser
 from auth.security import decode_access_token
 from auth.service import get_public_user
@@ -14,6 +15,9 @@ bearer_scheme = HTTPBearer(auto_error=False)
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> PublicUser:
+    if not AUTH_ENABLED:
+        return PublicUser(id=ANONYMOUS_USER_ID, email=ANONYMOUS_USER_EMAIL, is_active=True)
+
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="authentication_required")
 

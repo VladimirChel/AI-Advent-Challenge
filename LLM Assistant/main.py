@@ -7,9 +7,13 @@ from fastapi import Depends, FastAPI
 from config import (
     APP_NAME,
     APP_VERSION,
+    AUTH_ENABLED,
+    DATABASE_REQUIRED,
     DEFAULT_MODEL,
     DEFAULT_LLM_PROVIDER,
     LOG_LEVEL,
+    MEMORY_ENABLED,
+    STATELESS_MODE,
 )
 from db import db_pool, healthcheck_db, init_db
 from auth.dependencies import get_current_user
@@ -25,14 +29,18 @@ logger = logging.getLogger("agent_app")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    db_pool.open()
-    init_db()
-    logger.info("Database pool opened and schema initialized")
+    if db_pool is not None:
+        db_pool.open()
+        init_db()
+        logger.info("Database pool opened and schema initialized")
+    else:
+        logger.info("Database is disabled for this runtime mode")
     try:
         yield
     finally:
-        db_pool.close()
-        logger.info("Database pool closed")
+        if db_pool is not None:
+            db_pool.close()
+            logger.info("Database pool closed")
 
 
 app = FastAPI(
@@ -50,12 +58,16 @@ def utc_now_iso() -> str:
 @app.get("/health")
 def health() -> dict[str, Any]:
     db_ok, db_error = healthcheck_db()
+    database_status = "disabled" if not DATABASE_REQUIRED else "ok" if db_ok else "error"
     return {
-        "status": "ok" if db_ok else "degraded",
+        "status": "ok" if database_status in {"ok", "disabled"} else "degraded",
         "service": APP_NAME,
         "version": APP_VERSION,
-        "database": "ok" if db_ok else "error",
+        "database": database_status,
         "database_error": db_error,
+        "auth_enabled": AUTH_ENABLED,
+        "memory_enabled": MEMORY_ENABLED,
+        "stateless_mode": STATELESS_MODE,
         "default_provider": DEFAULT_LLM_PROVIDER,
         "default_model": DEFAULT_MODEL,
         "time": utc_now_iso(),

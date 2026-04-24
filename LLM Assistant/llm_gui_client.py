@@ -597,10 +597,6 @@ class LLMTesterApp(ctk.CTk):
         )
 
     def fetch_models(self) -> None:
-        if not self.access_token:
-            self.set_status("login first")
-            return
-
         provider_id = self._selected_provider()
         path = "/models"
         if provider_id:
@@ -614,10 +610,6 @@ class LLMTesterApp(ctk.CTk):
         )
 
     def fetch_providers(self) -> None:
-        if not self.access_token:
-            self.set_status("login first")
-            return
-
         self._run_request(
             name="providers",
             method="GET",
@@ -753,10 +745,6 @@ class LLMTesterApp(ctk.CTk):
         )
 
     def send_message(self) -> None:
-        if not self.access_token:
-            self.set_status("login first")
-            return
-
         if self.request_thread and self.request_thread.is_alive():
             self.set_status("wait for the current request")
             return

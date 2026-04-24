@@ -33,6 +33,9 @@ FIELDS: list[ConfigField] = [
     ConfigField("DEBUG", "Debug mode", "Server", "false", "bool"),
     ConfigField("LOG_LEVEL", "Log level", "Server", "INFO"),
     ConfigField("LOG_DIR", "Log directory", "Server", "logs"),
+    ConfigField("STATELESS_MODE", "Stateless mode", "Server", "false", "bool"),
+    ConfigField("AUTH_ENABLED", "Auth enabled", "Server", "true", "bool"),
+    ConfigField("MEMORY_ENABLED", "Memory enabled", "Server", "true", "bool"),
     ConfigField("DATABASE_URL", "PostgreSQL URL", "Server", "", secret=True),
     ConfigField("AUTH_SECRET_KEY", "Auth secret key", "Server", "", secret=True),
     ConfigField("AUTH_TOKEN_TTL_SECONDS", "Auth token TTL, sec", "Server", "86400", "int"),
@@ -571,8 +574,11 @@ def validate_values(values: dict[str, str], fields: list[ConfigField]) -> list[s
             if not isinstance(parsed, list):
                 errors.append(f"{field.key} must be a list.")
 
-    if not values.get("DATABASE_URL", "").strip():
-        errors.append("DATABASE_URL is required by config.py.")
+    stateless_mode = values.get("STATELESS_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
+    auth_enabled = values.get("AUTH_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+    memory_enabled = values.get("MEMORY_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+    if not stateless_mode and (auth_enabled or memory_enabled) and not values.get("DATABASE_URL", "").strip():
+        errors.append("DATABASE_URL is required unless STATELESS_MODE=true or both AUTH_ENABLED=false and MEMORY_ENABLED=false.")
     if not values.get("LLM_BASE_URL", "").strip():
         errors.append("LLM_BASE_URL is required.")
     if not values.get("DEFAULT_MODEL", "").strip():

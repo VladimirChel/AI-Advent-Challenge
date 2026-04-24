@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 
 from config import (
+    MEMORY_ENABLED,
     MCP_ENABLED,
     MCP_MAX_TOOL_ROUNDTRIPS,
     MCP_SERVER_SCRIPT,
@@ -162,7 +163,8 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     user_id = current_user.id
     effective_provider_id = resolve_provider_id(payload.provider_id)
 
-    assert_conversation_access(conversation_id=conversation_id, user_id=user_id)
+    if MEMORY_ENABLED:
+        assert_conversation_access(conversation_id=conversation_id, user_id=user_id)
 
     policy = MemoryPolicy()
     effective_task_id = payload.task_id
@@ -207,16 +209,22 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     if not content.strip():
         raise HTTPException(status_code=502, detail="empty_model_response")
 
-    ensure_conversation(conversation_id=conversation_id, user_id=user_id, model=payload.model)
-
-    task_update = maybe_update_task_memory(
-        conversation_id=conversation_id,
-        branch_id=branch_id,
-        task_id=effective_task_id,
-        chat_mode=payload.chat_mode,
-        input_messages=payload.messages,
-        assistant_response=content,
-    )
+    if MEMORY_ENABLED:
+        ensure_conversation(conversation_id=conversation_id, user_id=user_id, model=payload.model)
+        task_update = maybe_update_task_memory(
+            conversation_id=conversation_id,
+            branch_id=branch_id,
+            task_id=effective_task_id,
+            chat_mode=payload.chat_mode,
+            input_messages=payload.messages,
+            assistant_response=content,
+        )
+    else:
+        task_update = {
+            "task_state": None,
+            "task_transition": None,
+            "task_transition_error": None,
+        }
     task_note = build_task_transition_chat_note(task_update)
 
     invariants = load_project_invariants()
@@ -243,33 +251,34 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     validate_output(content, payload.validation)
     usage = aggregate_usage(mcp_execution.responses)
 
-    exchange_messages = [*payload.messages, ChatMessage(role="assistant", content=content)]
-    save_messages(
-        conversation_id=conversation_id,
-        branch_id=branch_id,
-        user_id=user_id,
-        model=payload.model,
-        messages=exchange_messages,
-    )
-
-    facts = extract_candidate_facts(payload.messages)
-    upsert_facts(conversation_id, branch_id, user_id, facts)
-    add_memory_chunks(user_id, conversation_id, branch_id, exchange_messages)
-
-    recent_messages, latest_seq_no = get_recent_messages_for_summary(
-        conversation_id=conversation_id,
-        branch_id=branch_id,
-        limit=SUMMARY_MAX_INPUT_MESSAGES,
-    )
-    summary = build_summary_from_messages(recent_messages)
-    if summary:
-        upsert_conversation_summary(
+    if MEMORY_ENABLED:
+        exchange_messages = [*payload.messages, ChatMessage(role="assistant", content=content)]
+        save_messages(
             conversation_id=conversation_id,
             branch_id=branch_id,
             user_id=user_id,
-            summary=summary,
-            source_upto_seq_no=latest_seq_no,
+            model=payload.model,
+            messages=exchange_messages,
         )
+
+        facts = extract_candidate_facts(payload.messages)
+        upsert_facts(conversation_id, branch_id, user_id, facts)
+        add_memory_chunks(user_id, conversation_id, branch_id, exchange_messages)
+
+        recent_messages, latest_seq_no = get_recent_messages_for_summary(
+            conversation_id=conversation_id,
+            branch_id=branch_id,
+            limit=SUMMARY_MAX_INPUT_MESSAGES,
+        )
+        summary = build_summary_from_messages(recent_messages)
+        if summary:
+            upsert_conversation_summary(
+                conversation_id=conversation_id,
+                branch_id=branch_id,
+                user_id=user_id,
+                summary=summary,
+                source_upto_seq_no=latest_seq_no,
+            )
 
     latency_ms = int((time.perf_counter() - started) * 1000)
 

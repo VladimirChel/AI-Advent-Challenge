@@ -25,6 +25,11 @@ APP_HOST = os.getenv("APP_HOST", "0.0.0.0").strip()
 APP_PORT = int(os.getenv("APP_PORT", "8000"))
 DEBUG = _get_bool_env("DEBUG")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if DEBUG else "INFO").strip().upper()
+STATELESS_MODE = _get_bool_env("STATELESS_MODE")
+AUTH_ENABLED = False if STATELESS_MODE else _get_bool_env("AUTH_ENABLED", "true")
+MEMORY_ENABLED = False if STATELESS_MODE else _get_bool_env("MEMORY_ENABLED", "true")
+ANONYMOUS_USER_ID = os.getenv("ANONYMOUS_USER_ID", "guest").strip() or "guest"
+ANONYMOUS_USER_EMAIL = os.getenv("ANONYMOUS_USER_EMAIL", "guest@local").strip() or "guest@local"
 
 LLM_API_KEY = _get_env_with_legacy("LLM_API_KEY", "PROXYAPI_API_KEY")
 LLM_BASE_URL = _get_env_with_legacy("LLM_BASE_URL", "PROXYAPI_BASE_URL", "https://openai.api.proxyapi.ru/v1")
@@ -116,6 +121,7 @@ INVARIANTS_FILE = Path(os.getenv("INVARIANTS_FILE", "docs/assistant_invariants.j
 
 DB_POOL_MIN_SIZE = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
 DB_POOL_MAX_SIZE = int(os.getenv("DB_POOL_MAX_SIZE", "10"))
+DATABASE_REQUIRED = AUTH_ENABLED or MEMORY_ENABLED
 
 
 def _load_llm_providers() -> list[dict[str, str]]:
@@ -162,5 +168,5 @@ def _load_llm_providers() -> list[dict[str, str]]:
 
 LLM_PROVIDERS = _load_llm_providers()
 
-if not DATABASE_URL:
+if DATABASE_REQUIRED and not DATABASE_URL:
     raise RuntimeError("Environment variable DATABASE_URL is required")

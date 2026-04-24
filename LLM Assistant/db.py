@@ -4,24 +4,31 @@ from typing import Iterator
 import psycopg
 from psycopg_pool import ConnectionPool
 
-from config import DATABASE_URL, DB_POOL_MAX_SIZE, DB_POOL_MIN_SIZE
+from config import DATABASE_REQUIRED, DATABASE_URL, DB_POOL_MAX_SIZE, DB_POOL_MIN_SIZE
 
-
-db_pool = ConnectionPool(
-    conninfo=DATABASE_URL,
-    min_size=DB_POOL_MIN_SIZE,
-    max_size=DB_POOL_MAX_SIZE,
-    open=False,
+db_pool = (
+    ConnectionPool(
+        conninfo=DATABASE_URL,
+        min_size=DB_POOL_MIN_SIZE,
+        max_size=DB_POOL_MAX_SIZE,
+        open=False,
+    )
+    if DATABASE_REQUIRED
+    else None
 )
 
 
 @contextmanager
 def get_db_connection() -> Iterator[psycopg.Connection]:
+    if db_pool is None:
+        raise RuntimeError("database_disabled")
     with db_pool.connection() as conn:
         yield conn
 
 
 def init_db() -> None:
+    if db_pool is None:
+        return
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -270,6 +277,8 @@ def init_db() -> None:
 
 
 def healthcheck_db() -> tuple[bool, str | None]:
+    if db_pool is None:
+        return False, "disabled"
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:

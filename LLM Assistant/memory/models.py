@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Any
 from pydantic import BaseModel, Field
 from config import (
+    MEMORY_ENABLED,
     HISTORY_LIMIT,
     RETRIEVAL_ENABLED,
     RETRIEVAL_LIMIT,
@@ -11,12 +12,12 @@ from llm.schemas import ChatMessage
 
 
 class MemoryPolicy(BaseModel):
-    short_term_enabled: bool = True
-    working_memory_enabled: bool = True
-    long_term_enabled: bool = True
-    summary_enabled: bool = True
-    sticky_facts_enabled: bool = STICKY_FACTS_ENABLED
-    retrieval_enabled: bool = RETRIEVAL_ENABLED
+    short_term_enabled: bool = MEMORY_ENABLED
+    working_memory_enabled: bool = MEMORY_ENABLED
+    long_term_enabled: bool = MEMORY_ENABLED
+    summary_enabled: bool = MEMORY_ENABLED
+    sticky_facts_enabled: bool = MEMORY_ENABLED and STICKY_FACTS_ENABLED
+    retrieval_enabled: bool = MEMORY_ENABLED and RETRIEVAL_ENABLED
     short_term_limit: int = HISTORY_LIMIT
     retrieval_limit: int = RETRIEVAL_LIMIT
 
