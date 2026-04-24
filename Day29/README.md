@@ -31,7 +31,7 @@ python main.py index
 python main.py ask "какая общая дебиторка сегодня"
 python main.py ask "топ должников"
 python main.py ask "как изменилась просрочка за 3 дня"
-python main.py ask --anonymized "что у АНЕКО-СЕРВИС ООО"
+python main.py ask --anonymized "что у Название_контрагента"
 ```
 
 ### 3. Telegram-бот
