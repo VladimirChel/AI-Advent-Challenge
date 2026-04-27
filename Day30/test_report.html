@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local LLM Assistant Test Report</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #5b6878;
+      --line: #d8dee8;
+      --accent: #0f6cbd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 220px);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(17, 24, 39, 0.05);
+    }
+    .hero {
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    h1, h2 { margin: 0 0 12px 0; }
+    p { margin: 0; line-height: 1.55; }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      background: #fbfdff;
+    }
+    .card .k {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    .card .v {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .panel {
+      padding: 22px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f7faff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    code {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+    }
+    ul {
+      margin: 10px 0 0 18px;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Local LLM Assistant Test Report</h1>
+      <p class="muted">base_url: <code>http://127.0.0.1:8000</code> | model: <code>qwen2.5:7b-instruct</code></p>
+      <p class="muted" style="margin-top:8px;">Последний успешный контекст: 200000 символов (~50000 токенов). Сбой по контексту не найден в пределах текущего диапазона. Ошибок 429 не обнаружено.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="k">Service Status</div>
+          <div class="v">ok</div>
+        </div>
+        <div class="card">
+          <div class="k">Stateless Mode</div>
+          <div class="v">True</div>
+        </div>
+        <div class="card">
+          <div class="k">Memory Enabled</div>
+          <div class="v">False</div>
+        </div>
+        <div class="card">
+          <div class="k">Smoke Test</div>
+          <div class="v">200 / <span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></div>
+        </div>
+        <div class="card">
+          <div class="k">Max Successful Context</div>
+          <div class="v">200000</div>
+        </div>
+        <div class="card">
+          <div class="k">429 Count</div>
+          <div class="v">0</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Smoke Test</h2>
+      <p class="muted">Single request sanity check before heavier probing.</p>
+      <table style="margin-top:14px;">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>OK</th>
+            <th>Latency ms</th>
+            <th>Reply</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>200</td>
+            <td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td>
+            <td>3198</td>
+            <td><code>OK</code></td>
+            <td><code></code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Context Sweep</h2>
+      <p class="muted">Progressive context growth until failure or configured maximum.</p>
+      <table style="margin-top:14px;">
+        <thead>
+          <tr>
+            <th>Chars</th>
+            <th>Approx Tokens</th>
+            <th>Messages</th>
+            <th>Status</th>
+            <th>HTTP OK</th>
+            <th>Exact Match</th>
+            <th>Latency ms</th>
+            <th>Preview</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>20000</td><td>5000</td><td>4</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1682</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>40000</td><td>10000</td><td>6</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1930</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>60000</td><td>15000</td><td>7</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>2202</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>80000</td><td>20000</td><td>9</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>2515</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>100000</td><td>25000</td><td>11</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>8469</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>120000</td><td>30000</td><td>12</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>9534</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>140000</td><td>35000</td><td>14</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>9169</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>160000</td><td>40000</td><td>16</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>8871</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>180000</td><td>45000</td><td>17</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>9976</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr><tr><td>200000</td><td>50000</td><td>19</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>9707</td><td><code>CONTEXT_OK</code></td><td><code></code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Rate Test</h2>
+      <p class="muted">
+        requests=12,
+        concurrency=4,
+        elapsed_ms=3335,
+        successes=12,
+        exact_matches=12
+      </p>
+      <ul><li><strong>200</strong>: 12</li></ul>
+      <p class="muted" style="margin-top:10px;">
+        latency min/p50/max/avg = 386 /
+        1019 /
+        1173 /
+        963.4
+      </p>
+      <table style="margin-top:14px;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>HTTP OK</th>
+            <th>Exact Match</th>
+            <th>Latency ms</th>
+            <th>Preview</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>386</td><td><code>RATE_OK_1</code></td><td><code></code></td></tr><tr><td>2</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>919</td><td><code>RATE_OK_2</code></td><td><code></code></td></tr><tr><td>3</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1173</td><td><code>RATE_OK_3</code></td><td><code></code></td></tr><tr><td>4</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>660</td><td><code>RATE_OK_4</code></td><td><code></code></td></tr><tr><td>5</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1039</td><td><code>RATE_OK_5</code></td><td><code></code></td></tr><tr><td>6</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1016</td><td><code>RATE_OK_6</code></td><td><code></code></td></tr><tr><td>7</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1016</td><td><code>RATE_OK_7</code></td><td><code></code></td></tr><tr><td>8</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1015</td><td><code>RATE_OK_8</code></td><td><code></code></td></tr><tr><td>9</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1022</td><td><code>RATE_OK_9</code></td><td><code></code></td></tr><tr><td>10</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1066</td><td><code>RATE_OK_10</code></td><td><code></code></td></tr><tr><td>11</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1104</td><td><code>RATE_OK_11</code></td><td><code></code></td></tr><tr><td>12</td><td>200</td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td><span style='display:inline-block;padding:2px 8px;border-radius:999px;background:#ecfdf3;color:#18794e;font-weight:700'>OK</span></td><td>1145</td><td><code>RATE_OK_12</code></td><td><code></code></td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

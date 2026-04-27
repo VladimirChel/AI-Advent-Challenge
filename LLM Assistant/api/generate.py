@@ -28,7 +28,7 @@ from llm.client import (
     extract_text_from_chat_completion,
     resolve_provider_id,
 )
-from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServerConfig, MCPSettings, RAGSettings
+from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServerConfig, MCPSettings
 from llm.service import validate_output
 from memory.models import MemoryPolicy
 from memory.orchestrator import build_agent_context, materialize_context_messages
@@ -172,8 +172,6 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         effective_task_id = conversation_id
 
     rag_settings = resolve_rag_settings(payload.rag)
-    if payload.chat_mode == "rag_task_chat" and payload.rag is None and rag_settings is None:
-        rag_settings = resolve_rag_settings(RAGSettings(enabled=True))
     agent_ctx = build_agent_context(
         user_id=user_id,
         conversation_id=conversation_id,

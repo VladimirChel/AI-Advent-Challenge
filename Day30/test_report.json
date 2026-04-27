@@ -1,0 +1,332 @@
+{
+  "base_url": "http://127.0.0.1:8000",
+  "health": {
+    "status": "ok",
+    "service": "agent-memory-gateway",
+    "version": "0.1.0",
+    "database": "disabled",
+    "database_error": "disabled",
+    "auth_enabled": false,
+    "memory_enabled": false,
+    "stateless_mode": true,
+    "default_provider": "ollama",
+    "default_model": "qwen2.5:7b-instruct",
+    "time": "2026-04-27T04:53:02.925928+00:00"
+  },
+  "model": "qwen2.5:7b-instruct",
+  "smoke": {
+    "ok": true,
+    "status": 200,
+    "latency_ms": 398,
+    "content": "OK",
+    "error": null,
+    "usage": {
+      "prompt_tokens": 33,
+      "completion_tokens": 2,
+      "total_tokens": 35
+    },
+    "finish_reason": "stop"
+  },
+  "context_results": [
+    {
+      "total_chars": 20000,
+      "message_count": 4,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1628,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 3395,
+        "completion_tokens": 3,
+        "total_tokens": 3398
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 40000,
+      "message_count": 6,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 1867,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 6746,
+        "completion_tokens": 3,
+        "total_tokens": 6749
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 60000,
+      "message_count": 7,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 2098,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 10084,
+        "completion_tokens": 3,
+        "total_tokens": 10087
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 80000,
+      "message_count": 9,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 2383,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 13436,
+        "completion_tokens": 3,
+        "total_tokens": 13439
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 100000,
+      "message_count": 11,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 8039,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 14777,
+        "completion_tokens": 3,
+        "total_tokens": 14780
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 120000,
+      "message_count": 12,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 9052,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 16116,
+        "completion_tokens": 3,
+        "total_tokens": 16119
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 140000,
+      "message_count": 14,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 8735,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 15451,
+        "completion_tokens": 3,
+        "total_tokens": 15454
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 160000,
+      "message_count": 16,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 8459,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 14786,
+        "completion_tokens": 3,
+        "total_tokens": 14789
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 180000,
+      "message_count": 17,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 9484,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 16117,
+        "completion_tokens": 3,
+        "total_tokens": 16120
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    },
+    {
+      "total_chars": 200000,
+      "message_count": 19,
+      "ok": true,
+      "status": 200,
+      "latency_ms": 9270,
+      "exact_match": true,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 15452,
+        "completion_tokens": 3,
+        "total_tokens": 15455
+      },
+      "error": null,
+      "preview": "CONTEXT_OK"
+    }
+  ],
+  "rate_result": {
+    "requests": 12,
+    "concurrency": 4,
+    "elapsed_ms": 3126,
+    "successes": 12,
+    "exact_matches": 12,
+    "rate_limited": 0,
+    "status_counts": {
+      "200": 12
+    },
+    "latency_ms": {
+      "min": 351,
+      "p50": 968,
+      "max": 1080,
+      "avg": 901.9
+    },
+    "items": [
+      {
+        "index": 1,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 351,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_1"
+      },
+      {
+        "index": 2,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 591,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_2"
+      },
+      {
+        "index": 3,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 1076,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_3"
+      },
+      {
+        "index": 4,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 834,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_4"
+      },
+      {
+        "index": 5,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 967,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_5"
+      },
+      {
+        "index": 6,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 971,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_6"
+      },
+      {
+        "index": 7,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 969,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_7"
+      },
+      {
+        "index": 8,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 968,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_8"
+      },
+      {
+        "index": 9,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 968,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_9"
+      },
+      {
+        "index": 10,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 1005,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_10"
+      },
+      {
+        "index": 11,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 1043,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_11"
+      },
+      {
+        "index": 12,
+        "ok": true,
+        "status": 200,
+        "latency_ms": 1080,
+        "exact_match": true,
+        "finish_reason": "stop",
+        "error": null,
+        "preview": "RATE_OK_12"
+      }
+    ]
+  },
+  "generated_at_unix": 1777265647
+}
