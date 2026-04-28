@@ -32,6 +32,15 @@ from llm.schemas import ChatMessage, GenerateRequest, GenerateResponse, MCPServe
 from llm.service import validate_output
 from memory.models import MemoryPolicy
 from memory.orchestrator import build_agent_context, materialize_context_messages
+from project_help import (
+    HELP_MODE,
+    build_project_help_system_message,
+    HYBRID_ROUTE,
+    MCP_ROUTE,
+    resolve_help_mode,
+    resolve_project_mcp_settings,
+    resolve_project_rag_settings,
+)
 from rag.service import (
     build_day22_rag_context,
     build_rag_citations,
@@ -171,7 +180,6 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
     if TASK_AUTO_ID_FOR_RAG_CHAT and payload.chat_mode == "rag_task_chat" and not effective_task_id:
         effective_task_id = conversation_id
 
-    rag_settings = resolve_rag_settings(payload.rag)
     agent_ctx = build_agent_context(
         user_id=user_id,
         conversation_id=conversation_id,
@@ -180,49 +188,150 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         policy=policy,
         live_messages=payload.messages,
     )
-    latest_user_message = "\n".join(m.content for m in payload.messages if m.role == "user").strip()
-    rag_question = build_task_aware_rag_query(latest_user_message, agent_ctx.working_memory)
-    rag_result = build_day22_rag_context(rag_question, rag_settings)
-
-    full_messages = [*materialize_context_messages(agent_ctx)]
-    if rag_result.context_message:
-        full_messages.append(rag_result.context_message)
-    full_messages.extend(payload.messages)
-    mcp_settings = resolve_mcp_settings(payload)
-
-    response, mcp_execution = call_chat_completion_with_mcp(
-        provider_id=effective_provider_id,
-        model=payload.model,
-        messages=full_messages,
-        temperature=payload.temperature,
-        max_tokens=payload.max_tokens,
-        top_p=payload.top_p,
-        presence_penalty=payload.presence_penalty,
-        frequency_penalty=payload.frequency_penalty,
-        user_id=user_id,
-        mcp_settings=mcp_settings,
+    help_state = resolve_help_mode(
+        short_term_messages=agent_ctx.short_term_messages,
+        live_messages=payload.messages,
+        project=payload.project,
     )
+    effective_chat_mode = HELP_MODE if help_state.active_mode == HELP_MODE else payload.chat_mode
 
-    content, finish_reason = extract_text_from_chat_completion(response)
-    if not content.strip():
-        raise HTTPException(status_code=502, detail="empty_model_response")
-
-    if MEMORY_ENABLED:
-        ensure_conversation(conversation_id=conversation_id, user_id=user_id, model=payload.model)
-        task_update = maybe_update_task_memory(
-            conversation_id=conversation_id,
-            branch_id=branch_id,
-            task_id=effective_task_id,
-            chat_mode=payload.chat_mode,
-            input_messages=payload.messages,
-            assistant_response=content,
-        )
-    else:
+    if help_state.immediate_response is not None:
+        content = help_state.immediate_response
+        finish_reason = "stop"
+        usage = {}
+        rag_result = build_day22_rag_context("", None)
+        mcp_execution = resolve_mcp_empty_execution()
         task_update = {
             "task_state": None,
             "task_transition": None,
             "task_transition_error": None,
         }
+        if MEMORY_ENABLED:
+            ensure_conversation(conversation_id=conversation_id, user_id=user_id, model=payload.model)
+            save_messages(
+                conversation_id=conversation_id,
+                branch_id=branch_id,
+                user_id=user_id,
+                model=payload.model,
+                messages=[*payload.messages, ChatMessage(role="assistant", content=content)],
+            )
+
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return GenerateResponse(
+            request_id=request_id,
+            conversation_id=conversation_id,
+            branch_id=branch_id,
+            task_id=effective_task_id,
+            provider_id=effective_provider_id,
+            model=payload.model,
+            content=content,
+            finish_reason=finish_reason,
+            usage=usage,
+            latency_ms=latency_ms,
+            short_term_used=bool(agent_ctx.short_term_messages),
+            short_term_messages_used=len(agent_ctx.short_term_messages),
+            working_memory_used=agent_ctx.working_memory is not None,
+            long_term_used=bool(agent_ctx.long_term_summary or agent_ctx.long_term_facts or agent_ctx.retrieved_items),
+            long_term_facts_count=len(agent_ctx.long_term_facts),
+            long_term_summary_used=agent_ctx.long_term_summary is not None,
+            retrieval_used=bool(agent_ctx.retrieved_items),
+            retrieval_messages_used=len(agent_ctx.retrieved_items),
+            rag_used=False,
+            rag_chunks_used=0,
+            rag_strategy=None,
+            rag_chunks=[],
+            sources=[],
+            citations=[],
+            project_invariants_used=False,
+            project_invariants_count=0,
+            invariant_check_passed=True,
+            invariant_violations=[],
+            task_state=task_update["task_state"],
+            task_transition=task_update["task_transition"],
+            task_transition_error=task_update["task_transition_error"],
+            active_mode=help_state.active_mode,
+            project_id=help_state.project_id,
+            project_help_route=help_state.route if help_state.active_mode == HELP_MODE else None,
+            mcp_used=False,
+            mcp_server=None,
+            mcp_servers=[],
+            mcp_tools_offered=0,
+            mcp_available_tools=[],
+            mcp_tool_calls=[],
+            mcp_tool_trace=[],
+        )
+    else:
+        help_route = help_state.route if help_state.active_mode == HELP_MODE else RAG_ROUTE_FALLBACK
+        effective_rag_payload = resolve_project_rag_settings(
+            payload.project,
+            payload.rag,
+            help_mode_active=help_state.active_mode == HELP_MODE and help_route in {RAG_ROUTE_FALLBACK, HYBRID_ROUTE},
+        )
+        rag_settings = resolve_rag_settings(effective_rag_payload)
+        latest_user_message = "\n".join(m.content for m in help_state.rewritten_live_messages if m.role == "user").strip()
+        if rag_settings is not None:
+            rag_question = build_task_aware_rag_query(latest_user_message, agent_ctx.working_memory)
+            rag_result = build_day22_rag_context(rag_question, rag_settings)
+        else:
+            rag_result = build_day22_rag_context("", None)
+
+        full_messages = [*materialize_context_messages(agent_ctx)]
+        if help_state.active_mode == HELP_MODE:
+            help_system_message = build_project_help_system_message(payload.project)
+            if help_system_message:
+                full_messages.append(help_system_message)
+        if rag_result.context_message:
+            full_messages.append(rag_result.context_message)
+        full_messages.extend(help_state.rewritten_live_messages)
+
+        project_mcp_settings = resolve_project_mcp_settings(
+            payload.project,
+            payload.mcp,
+            help_mode_active=help_state.active_mode == HELP_MODE and help_route in {MCP_ROUTE, HYBRID_ROUTE},
+        )
+        mcp_settings = resolve_mcp_settings(
+            payload.model_copy(
+                update={
+                    "chat_mode": effective_chat_mode,
+                    "messages": help_state.rewritten_live_messages,
+                    "mcp": project_mcp_settings,
+                }
+            )
+        )
+
+        response, mcp_execution = call_chat_completion_with_mcp(
+            provider_id=effective_provider_id,
+            model=payload.model,
+            messages=full_messages,
+            temperature=payload.temperature,
+            max_tokens=payload.max_tokens,
+            top_p=payload.top_p,
+            presence_penalty=payload.presence_penalty,
+            frequency_penalty=payload.frequency_penalty,
+            user_id=user_id,
+            mcp_settings=mcp_settings,
+        )
+
+        content, finish_reason = extract_text_from_chat_completion(response)
+        if not content.strip():
+            raise HTTPException(status_code=502, detail="empty_model_response")
+
+        if MEMORY_ENABLED:
+            ensure_conversation(conversation_id=conversation_id, user_id=user_id, model=payload.model)
+            task_update = maybe_update_task_memory(
+                conversation_id=conversation_id,
+                branch_id=branch_id,
+                task_id=effective_task_id,
+                chat_mode=effective_chat_mode,
+                input_messages=help_state.rewritten_live_messages,
+                assistant_response=content,
+            )
+        else:
+            task_update = {
+                "task_state": None,
+                "task_transition": None,
+                "task_transition_error": None,
+            }
     task_note = build_task_transition_chat_note(task_update)
 
     invariants = load_project_invariants()
@@ -241,7 +350,8 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         if not invariant_check.allowed:
             content = build_invariant_refusal(invariant_check)
 
-    content = enforce_rag_response_contract(content, rag_result)
+    if rag_result.enabled:
+        content = enforce_rag_response_contract(content, rag_result)
 
     if payload.show_task_transition_in_chat and task_note and not task_transition_error:
         content = f"{content.rstrip()}\n\n{task_note}"
@@ -312,6 +422,9 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         task_state=task_update["task_state"],
         task_transition=task_update["task_transition"],
         task_transition_error=task_update["task_transition_error"],
+        active_mode=help_state.active_mode,
+        project_id=help_state.project_id,
+        project_help_route=help_state.route if help_state.active_mode == HELP_MODE else None,
         mcp_used=mcp_execution.used,
         mcp_server=mcp_execution.server_script,
         mcp_servers=mcp_execution.servers,
@@ -320,3 +433,12 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         mcp_tool_calls=mcp_execution.tool_calls,
         mcp_tool_trace=mcp_execution.tool_trace,
     )
+
+
+def resolve_mcp_empty_execution():
+    from llm.client import MCPExecutionResult
+
+    return MCPExecutionResult()
+
+
+RAG_ROUTE_FALLBACK = "rag"

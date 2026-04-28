@@ -47,11 +47,19 @@ class RAGSettings(BaseModel):
     lexical_fallback_enabled: bool = True
 
 
+class ProjectSettings(BaseModel):
+    id: str | None = Field(default=None, min_length=1, max_length=200)
+    root: str | None = None
+    index_dir: str | None = None
+    index_file: str | None = None
+    metadata_file: str | None = None
+
+
 class GenerateRequest(BaseModel):
     conversation_id: str | None = None
     branch_id: str = "main"
     task_id: str | None = None
-    chat_mode: Literal["default", "rag_task_chat"] = "rag_task_chat"
+    chat_mode: Literal["default", "rag_task_chat", "project_help"] = "rag_task_chat"
     provider_id: str | None = Field(default=None, min_length=1, max_length=100)
     model: str
     messages: list[ChatMessage]
@@ -65,6 +73,7 @@ class GenerateRequest(BaseModel):
     show_task_transition_in_chat: bool = TASK_SHOW_TRANSITIONS
     mcp: MCPSettings | None = None
     rag: RAGSettings | None = None
+    project: ProjectSettings | None = None
 
 
 class RAGChunkPayload(BaseModel):
@@ -157,6 +166,9 @@ class GenerateResponse(BaseModel):
     task_state: TaskStatePayload | None = None
     task_transition: TaskTransitionPayload | None = None
     task_transition_error: TaskTransitionErrorPayload | None = None
+    active_mode: str = "default"
+    project_id: str | None = None
+    project_help_route: str | None = None
     mcp_used: bool = False
     mcp_server: str | None = None
     mcp_servers: list[str] = Field(default_factory=list)

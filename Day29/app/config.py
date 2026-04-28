@@ -47,6 +47,7 @@ class AppConfig:
     telegram_allowed_chat_ids: str = field(default_factory=lambda: os.getenv("TELEGRAM_ALLOWED_CHAT_IDS", ""))
     telegram_poll_timeout_seconds: int = field(default_factory=lambda: int(os.getenv("TELEGRAM_POLL_TIMEOUT_SECONDS", "30")))
     telegram_parse_mode: str = field(default_factory=lambda: os.getenv("TELEGRAM_PARSE_MODE", "HTML"))
+    telegram_proxy_url: str = field(default_factory=lambda: os.getenv("TELEGRAM_PROXY_URL", ""))
 
     def ensure_directories(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)

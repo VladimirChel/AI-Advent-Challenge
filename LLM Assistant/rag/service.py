@@ -444,6 +444,25 @@ def _normalize_match_token(token: str) -> str:
     return normalized
 
 
+def _build_chunk_path_haystacks(raw_item: dict[str, Any]) -> tuple[str, str, str, str, str]:
+    chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
+    source = str(chunk.get("source", "")).replace("\\", "/").lower()
+    path = Path(source)
+    title = str(chunk.get("title", "")).lower()
+    source_name = path.name.lower()
+    section = str(chunk.get("section", "")).lower()
+
+    source_parts = [part.lower() for part in path.parts if part not in {"", ".", "/", "\\"}]
+    source_path_haystack = " ".join(source_parts)
+
+    source_path_tokens: list[str] = []
+    for part in source_parts:
+        source_path_tokens.extend(re.findall(r"[\w=.\-]+", part, flags=re.UNICODE))
+    source_path_token_haystack = " ".join(source_path_tokens)
+
+    return title, source_name, section, source_path_haystack, source_path_token_haystack
+
+
 def _token_distance_leq_one(left: str, right: str) -> bool:
     if left == right:
         return True
@@ -665,22 +684,26 @@ def _normalize_match_token(token: str) -> str:
 def _lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
     chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
     text_haystack = str(chunk.get("text", "")).lower()
+    _, _, section, source_path_haystack, source_path_token_haystack = _build_chunk_path_haystacks(raw_item)
     title_source_haystack = " ".join(
         [
             str(chunk.get("title", "")).lower(),
             Path(str(chunk.get("source", ""))).name.lower(),
-            str(chunk.get("section", "")).lower(),
+            source_path_haystack,
+            section,
         ]
     )
-    full_haystack = " ".join([title_source_haystack, str(chunk.get("section", "")).lower(), text_haystack])
+    full_haystack = " ".join([title_source_haystack, source_path_token_haystack, section, text_haystack])
     normalized_tokens = _query_tokens(query)
     if not normalized_tokens:
         return 0.0
 
     matched_full, fuzzy_full = _count_token_matches(normalized_tokens, full_haystack)
     matched_title_source, fuzzy_title_source = _count_token_matches(normalized_tokens, title_source_haystack)
+    matched_path, fuzzy_path = _count_token_matches(normalized_tokens, source_path_haystack)
     ordered_title_matches, contiguous_title_match = _count_ordered_phrase_matches(normalized_tokens, title_source_haystack)
     ordered_full_matches, contiguous_full_match = _count_ordered_phrase_matches(normalized_tokens, full_haystack)
+    ordered_path_matches, contiguous_path_match = _count_ordered_phrase_matches(normalized_tokens, source_path_haystack)
 
     phrase_bonus = 0.0
     if contiguous_title_match:
@@ -695,6 +718,13 @@ def _lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
     elif ordered_full_matches == len(normalized_tokens):
         phrase_bonus += 0.7
 
+    if contiguous_path_match:
+        phrase_bonus += 2.4
+    elif ordered_path_matches == len(normalized_tokens):
+        phrase_bonus += 1.8
+    elif ordered_path_matches >= max(2, len(normalized_tokens) - 1):
+        phrase_bonus += 1.1
+
     total_title_matches = matched_title_source + fuzzy_title_source
     if total_title_matches == len(normalized_tokens):
         phrase_bonus += 1.0
@@ -706,6 +736,8 @@ def _lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
         + fuzzy_full * 0.02
         + matched_title_source * 0.16
         + fuzzy_title_source * 0.12
+        + matched_path * 0.24
+        + fuzzy_path * 0.18
         + phrase_bonus
     )
     if "оглавление" in text_haystack or len(re.findall(r"\.{4,}", text_haystack)) >= 2:
@@ -715,20 +747,20 @@ def _lexical_boost(query: str, raw_item: dict[str, Any]) -> float:
 
 def _phrase_match_score(query: str, raw_item: dict[str, Any]) -> float:
     chunk = raw_item["chunk"] if "chunk" in raw_item else raw_item
-    title = str(chunk.get("title", "")).lower()
-    source_name = Path(str(chunk.get("source", ""))).name.lower()
-    section = str(chunk.get("section", "")).lower()
+    title, source_name, section, source_path_haystack, source_path_token_haystack = _build_chunk_path_haystacks(raw_item)
     text = str(chunk.get("text", "")).lower()
-    title_source_haystack = " ".join([title, source_name, section])
-    full_haystack = " ".join([title_source_haystack, text])
+    title_source_haystack = " ".join([title, source_name, source_path_haystack, section])
+    full_haystack = " ".join([title_source_haystack, source_path_token_haystack, text])
     normalized_query_tokens = _query_tokens(query)
     if not normalized_query_tokens:
         return 0.0
 
     ordered_title_matches, contiguous_title_match = _count_ordered_phrase_matches(normalized_query_tokens, title_source_haystack)
     ordered_full_matches, contiguous_full_match = _count_ordered_phrase_matches(normalized_query_tokens, full_haystack)
+    ordered_path_matches, contiguous_path_match = _count_ordered_phrase_matches(normalized_query_tokens, source_path_haystack)
     exact_title_matches, fuzzy_title_matches = _count_token_matches(normalized_query_tokens, title_source_haystack)
     exact_full_matches, fuzzy_full_matches = _count_token_matches(normalized_query_tokens, full_haystack)
+    exact_path_matches, fuzzy_path_matches = _count_token_matches(normalized_query_tokens, source_path_haystack)
     leading_haystack = full_haystack[:450]
     leading_ordered_matches, leading_contiguous_match = _count_ordered_phrase_matches(normalized_query_tokens, leading_haystack)
 
@@ -747,6 +779,13 @@ def _phrase_match_score(query: str, raw_item: dict[str, Any]) -> float:
     elif ordered_full_matches >= max(2, len(normalized_query_tokens) - 1):
         score += 1.2
 
+    if contiguous_path_match:
+        score += 6.5
+    elif ordered_path_matches == len(normalized_query_tokens):
+        score += 5.0
+    elif ordered_path_matches >= max(2, len(normalized_query_tokens) - 1):
+        score += 3.0
+
     if leading_contiguous_match:
         score += 2.2
     elif leading_ordered_matches == len(normalized_query_tokens):
@@ -756,6 +795,8 @@ def _phrase_match_score(query: str, raw_item: dict[str, Any]) -> float:
     score += fuzzy_title_matches * 0.35
     score += exact_full_matches * 0.15
     score += fuzzy_full_matches * 0.08
+    score += exact_path_matches * 0.95
+    score += fuzzy_path_matches * 0.5
 
     if "оглавление" in text or len(re.findall(r"\.{4,}", text)) >= 2:
         score -= 2.5

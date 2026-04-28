@@ -40,6 +40,13 @@ python main.py ask --anonymized "что у Название_контрагент
 python main.py bot
 ```
 
+Проверка только Telegram-бота:
+
+```bash
+python check_telegram_bot.py
+python check_telegram_bot.py --updates
+```
+
 Команды бота:
 
 - `/today` - сводка по текущему отчету
@@ -66,9 +73,22 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_ALLOWED_CHAT_IDS=
 TELEGRAM_POLL_TIMEOUT_SECONDS=30
 TELEGRAM_PARSE_MODE=HTML
+TELEGRAM_PROXY_URL=
 ```
 
 `LLM_CLOUD_MODE=true` включает обезличивание `manager_name`, `client_name`, `contract_name` и `name` перед вызовом LLM.
+
+Для Telegram можно задать `TELEGRAM_PROXY_URL`, например:
+
+```env
+TELEGRAM_PROXY_URL=socks5://127.0.0.1:1080
+```
+
+Если у прокси есть логин и пароль, используйте формат:
+
+```env
+TELEGRAM_PROXY_URL=socks5://username:password@127.0.0.1:1080
+```
 
 ## Ограничения MVP
 

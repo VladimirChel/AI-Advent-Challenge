@@ -274,6 +274,54 @@ Example request for manual testing:
 }
 ```
 
+## Project Help Mode
+
+The backend now supports a universal project-help workflow driven by chat commands and external indexes.
+
+### Commands
+
+- `/help` - enable project-help mode for the current conversation
+- `/help <question>` - enable project-help mode and answer the question immediately
+- `/mode` - show the current mode
+- `/exit` - leave project-help mode and return to the default assistant mode
+
+### External project index
+
+Build the index outside the target repository with [../Day31/build_project_index.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challenge/Repo/AI%20Advent%20Challenge/Day31/build_project_index.py):
+
+```bash
+python ..\Day31\build_project_index.py --project-root "D:\path\to\project" --project-id my-project --output-dir "..\Day31\indexes"
+```
+
+This creates `manifest.json`, chunk metadata, and optionally a FAISS index inside `..\Day31\indexes\<project-id>`.
+
+### Request payload for project help
+
+```json
+{
+  "conversation_id": "conv-project-1",
+  "branch_id": "main",
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "/help Какая структура проекта?"
+    }
+  ],
+  "project": {
+    "id": "aspia",
+    "root": "D:\\path\\to\\aspia",
+    "index_dir": "D:\\path\\to\\Day31\\indexes\\aspia"
+  }
+}
+```
+
+When `project.root` is provided and no explicit MCP config is passed, the backend automatically enables the universal repo server from [../MCP/project_repo_tools/server.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challenge/Repo/AI%20Advent%20Challenge/MCP/project_repo_tools/server.py). That server exposes:
+
+- `git_branch(project_root)`
+- `list_dir(project_root, path=".")`
+- `read_file(project_root, path, max_chars=12000)`
+
 ## Invariants
 
 Project invariants are stored separately from the dialogue in `docs/assistant_invariants.json`.

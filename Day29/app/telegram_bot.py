@@ -20,6 +20,14 @@ class TelegramBot:
         self.base_url = f"https://api.telegram.org/bot{config.telegram_bot_token}"
         self.offset = 0
         self.anonymized_mode_by_chat: dict[int, bool] = {}
+        self.session = requests.Session()
+        if config.telegram_proxy_url:
+            self.session.proxies.update(
+                {
+                    "http": config.telegram_proxy_url,
+                    "https": config.telegram_proxy_url,
+                }
+            )
 
     def _allowed(self, chat_id: int) -> bool:
         raw = self.config.telegram_allowed_chat_ids.strip()
@@ -29,7 +37,7 @@ class TelegramBot:
         return str(chat_id) in allowed
 
     def get_updates(self) -> list[dict[str, Any]]:
-        response = requests.get(
+        response = self.session.get(
             f"{self.base_url}/getUpdates",
             params={
                 "offset": self.offset,
@@ -45,7 +53,7 @@ class TelegramBot:
         return payload.get("result", [])
 
     def send_message(self, chat_id: int, text: str) -> None:
-        response = requests.post(
+        response = self.session.post(
             f"{self.base_url}/sendMessage",
             json={
                 "chat_id": chat_id,
