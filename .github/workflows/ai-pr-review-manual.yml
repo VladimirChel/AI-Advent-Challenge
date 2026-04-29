@@ -41,28 +41,28 @@ jobs:
           python-version: "3.11"
 
       - name: Run local AI review
-        shell: bash
+        shell: pwsh
         env:
           LLM_ASSISTANT_URL: http://127.0.0.1:8000
           LLM_ASSISTANT_PROVIDER_ID: cloud
           LLM_ASSISTANT_MODEL: openai/gpt-4.1-mini-2025-04-14
         run: |
-          mkdir -p artifacts
-          extra_args=""
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            extra_args="--dry-run"
-          fi
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $extraArgs = @()
+          if ("${{ inputs.dry_run }}" -eq "true") {
+            $extraArgs += "--dry-run"
+          }
 
-          python Day31/run_pr_review.py \
-            --repo-root "$GITHUB_WORKSPACE" \
-            --project-root "$GITHUB_WORKSPACE" \
-            --project-id "ai-advent-challenge" \
-            --index-dir "$GITHUB_WORKSPACE/Day31/indexes" \
-            --base-ref "${{ inputs.base_ref }}" \
-            --head-ref "${{ inputs.head_ref }}" \
-            --output-file "$GITHUB_WORKSPACE/artifacts/ai-review.md" \
-            --metadata-file "$GITHUB_WORKSPACE/artifacts/ai-review.json" \
-            $extra_args
+          python Day31/run_pr_review.py `
+            --repo-root "$env:GITHUB_WORKSPACE" `
+            --project-root "$env:GITHUB_WORKSPACE" `
+            --project-id "ai-advent-challenge" `
+            --index-dir "$env:GITHUB_WORKSPACE/Day31/indexes" `
+            --base-ref "${{ inputs.base_ref }}" `
+            --head-ref "${{ inputs.head_ref }}" `
+            --output-file "$env:GITHUB_WORKSPACE/artifacts/ai-review.md" `
+            --metadata-file "$env:GITHUB_WORKSPACE/artifacts/ai-review.json" `
+            @extraArgs
 
       - name: Upload review artifacts
         uses: actions/upload-artifact@v4
