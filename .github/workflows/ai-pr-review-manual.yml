@@ -1,4 +1,4 @@
-name: AI PR Review Manual 
+name: AI PR Review Manual
 
 on:
   workflow_dispatch:
