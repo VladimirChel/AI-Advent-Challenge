@@ -1,0 +1,109 @@
+name: AI PR Review Manual 
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number for comment publication
+        required: true
+        type: string
+      base_ref:
+        description: Base commit or branch
+        required: true
+        type: string
+      head_ref:
+        description: Head commit or branch
+        required: true
+        type: string
+      dry_run:
+        description: Skip the Ollama call and emit a placeholder review
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-review:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run local AI review
+        shell: bash
+        env:
+          LLM_ASSISTANT_URL: http://127.0.0.1:8000
+          LLM_ASSISTANT_PROVIDER_ID: cloud
+          LLM_ASSISTANT_MODEL: openai/gpt-4.1-mini-2025-04-14
+        run: |
+          mkdir -p artifacts
+          extra_args=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            extra_args="--dry-run"
+          fi
+
+          python Day31/run_pr_review.py \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --project-root "$GITHUB_WORKSPACE" \
+            --project-id "ai-advent-challenge" \
+            --index-dir "$GITHUB_WORKSPACE/Day31/indexes" \
+            --base-ref "${{ inputs.base_ref }}" \
+            --head-ref "${{ inputs.head_ref }}" \
+            --output-file "$GITHUB_WORKSPACE/artifacts/ai-review.md" \
+            --metadata-file "$GITHUB_WORKSPACE/artifacts/ai-review.json" \
+            $extra_args
+
+      - name: Upload review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-pr-review
+          path: artifacts/
+
+      - name: Publish PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/artifacts/ai-review.md`, 'utf8');
+            const marker = '<!-- ai-pr-review -->';
+            const commentBody = `${marker}\n${body}`;
+            const { owner, repo } = context.repo;
+            const issue_number = Number('${{ inputs.pr_number }}');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body && comment.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: commentBody,
+              });
+            }
