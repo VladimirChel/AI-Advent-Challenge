@@ -5,7 +5,6 @@ import json
 
 from app.analytics import AnalyticsStore
 from app.config import load_config
-from app.mcp_tools import handle_get_document_print_form
 from app.report_parser import build_snapshots
 from app.service import DebtAssistantService
 from app.telegram_bot import TelegramBot
@@ -32,31 +31,6 @@ def cmd_bot() -> None:
     bot.run()
 
 
-def cmd_print_form(
-    document_type: str,
-    document_number: str,
-    document_date: str | None,
-    organization: str | None,
-    print_form: str | None,
-    output_format: str,
-    save_to_file: bool,
-) -> None:
-    config = load_config()
-    result = handle_get_document_print_form(
-        {
-            "document_type": document_type,
-            "document_number": document_number,
-            "document_date": document_date,
-            "organization": organization,
-            "print_form": print_form,
-            "output_format": output_format,
-            "save_to_file": save_to_file,
-        },
-        config=config,
-    )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Debt report assistant MVP")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -69,15 +43,6 @@ def main() -> None:
 
     subparsers.add_parser("bot", help="Run Telegram bot")
 
-    print_form_parser = subparsers.add_parser("print-form", help="Fetch a document print form from 1C HTTP service")
-    print_form_parser.add_argument("document_type", help="External document type, for example sales_invoice")
-    print_form_parser.add_argument("document_number", help="Document number in 1C")
-    print_form_parser.add_argument("--document-date", dest="document_date", help="Document date in YYYY-MM-DD format")
-    print_form_parser.add_argument("--organization", help="Organization or another search qualifier")
-    print_form_parser.add_argument("--print-form", dest="print_form", help="Print form name, for example invoice")
-    print_form_parser.add_argument("--output-format", default="pdf", choices=["pdf", "html", "raw"], help="Expected output format")
-    print_form_parser.add_argument("--save-to-file", action="store_true", help="Save the result to output/print_forms")
-
     args = parser.parse_args()
     if args.command == "index":
         cmd_index()
@@ -87,17 +52,6 @@ def main() -> None:
         return
     if args.command == "bot":
         cmd_bot()
-        return
-    if args.command == "print-form":
-        cmd_print_form(
-            args.document_type,
-            args.document_number,
-            document_date=args.document_date,
-            organization=args.organization,
-            print_form=args.print_form,
-            output_format=args.output_format,
-            save_to_file=args.save_to_file,
-        )
         return
 
 
