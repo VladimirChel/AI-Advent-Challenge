@@ -1,0 +1,306 @@
+[
+  {
+    "id": "U-1001",
+    "name": "User 1",
+    "email": "user1@example.com",
+    "plan": "starter",
+    "locale": "ru",
+    "account_status": "active",
+    "created_at": "2024-09-18T07:53:26.809520+00:00",
+    "tags": [
+      "security_sensitive",
+      "frequent_support"
+    ]
+  },
+  {
+    "id": "U-1002",
+    "name": "User 2",
+    "email": "user2@example.com",
+    "plan": "starter",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2024-11-01T07:53:26.809520+00:00",
+    "tags": [
+      "vip",
+      "web"
+    ]
+  },
+  {
+    "id": "U-1003",
+    "name": "User 3",
+    "email": "user3@example.com",
+    "plan": "free",
+    "locale": "en",
+    "account_status": "pending_verification",
+    "created_at": "2024-06-05T07:53:26.809520+00:00",
+    "tags": [
+      "frequent_support",
+      "vip"
+    ]
+  },
+  {
+    "id": "U-1004",
+    "name": "User 4",
+    "email": "user4@example.com",
+    "plan": "enterprise",
+    "locale": "en",
+    "account_status": "active",
+    "created_at": "2026-03-03T07:53:26.809520+00:00",
+    "tags": [
+      "security_sensitive",
+      "mobile",
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1005",
+    "name": "User 5",
+    "email": "user5@example.com",
+    "plan": "pro",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2026-02-27T07:53:26.809520+00:00",
+    "tags": [
+      "security_sensitive"
+    ]
+  },
+  {
+    "id": "U-1006",
+    "name": "User 6",
+    "email": "user6@example.com",
+    "plan": "free",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2025-04-16T07:53:26.809520+00:00",
+    "tags": [
+      "web",
+      "security_sensitive",
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1007",
+    "name": "User 7",
+    "email": "user7@example.com",
+    "plan": "pro",
+    "locale": "en",
+    "account_status": "pending_verification",
+    "created_at": "2025-04-28T07:53:26.809520+00:00",
+    "tags": [
+      "security_sensitive"
+    ]
+  },
+  {
+    "id": "U-1008",
+    "name": "User 8",
+    "email": "user8@example.com",
+    "plan": "free",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2026-01-03T07:53:26.809520+00:00",
+    "tags": [
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1009",
+    "name": "User 9",
+    "email": "user9@example.com",
+    "plan": "free",
+    "locale": "ru",
+    "account_status": "locked",
+    "created_at": "2025-11-24T07:53:26.809520+00:00",
+    "tags": [
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1010",
+    "name": "User 10",
+    "email": "user10@example.com",
+    "plan": "pro",
+    "locale": "en",
+    "account_status": "active",
+    "created_at": "2025-03-02T07:53:26.809520+00:00",
+    "tags": [
+      "security_sensitive"
+    ]
+  },
+  {
+    "id": "U-1011",
+    "name": "User 11",
+    "email": "user11@example.com",
+    "plan": "enterprise",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2024-06-25T07:53:26.809520+00:00",
+    "tags": [
+      "web",
+      "frequent_support"
+    ]
+  },
+  {
+    "id": "U-1012",
+    "name": "User 12",
+    "email": "user12@example.com",
+    "plan": "enterprise",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2024-10-21T07:53:26.809520+00:00",
+    "tags": [
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1013",
+    "name": "User 13",
+    "email": "user13@example.com",
+    "plan": "enterprise",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2024-12-19T07:53:26.809520+00:00",
+    "tags": [
+      "security_sensitive"
+    ]
+  },
+  {
+    "id": "U-1014",
+    "name": "User 14",
+    "email": "user14@example.com",
+    "plan": "free",
+    "locale": "en",
+    "account_status": "active",
+    "created_at": "2025-08-19T07:53:26.809520+00:00",
+    "tags": [
+      "mobile",
+      "vip",
+      "frequent_support"
+    ]
+  },
+  {
+    "id": "U-1015",
+    "name": "User 15",
+    "email": "user15@example.com",
+    "plan": "free",
+    "locale": "en",
+    "account_status": "pending_verification",
+    "created_at": "2026-03-22T07:53:26.809520+00:00",
+    "tags": [
+      "vip",
+      "frequent_support"
+    ]
+  },
+  {
+    "id": "U-1016",
+    "name": "User 16",
+    "email": "user16@example.com",
+    "plan": "pro",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2025-03-05T07:53:26.809520+00:00",
+    "tags": [
+      "vip",
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1017",
+    "name": "User 17",
+    "email": "user17@example.com",
+    "plan": "enterprise",
+    "locale": "en",
+    "account_status": "active",
+    "created_at": "2024-03-09T07:53:26.809520+00:00",
+    "tags": [
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1018",
+    "name": "User 18",
+    "email": "user18@example.com",
+    "plan": "pro",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2025-10-18T07:53:26.809520+00:00",
+    "tags": [
+      "security_sensitive"
+    ]
+  },
+  {
+    "id": "U-1019",
+    "name": "User 19",
+    "email": "user19@example.com",
+    "plan": "enterprise",
+    "locale": "en",
+    "account_status": "active",
+    "created_at": "2025-04-28T07:53:26.809520+00:00",
+    "tags": [
+      "web",
+      "frequent_support",
+      "b2b"
+    ]
+  },
+  {
+    "id": "U-1020",
+    "name": "User 20",
+    "email": "user20@example.com",
+    "plan": "free",
+    "locale": "ru",
+    "account_status": "pending_verification",
+    "created_at": "2024-03-22T07:53:26.809520+00:00",
+    "tags": [
+      "web"
+    ]
+  },
+  {
+    "id": "U-1021",
+    "name": "User 21",
+    "email": "user21@example.com",
+    "plan": "free",
+    "locale": "ru",
+    "account_status": "locked",
+    "created_at": "2024-09-05T07:53:26.809520+00:00",
+    "tags": [
+      "mobile"
+    ]
+  },
+  {
+    "id": "U-1022",
+    "name": "User 22",
+    "email": "user22@example.com",
+    "plan": "free",
+    "locale": "ru",
+    "account_status": "active",
+    "created_at": "2024-08-10T07:53:26.809520+00:00",
+    "tags": [
+      "vip",
+      "frequent_support",
+      "web"
+    ]
+  },
+  {
+    "id": "U-1023",
+    "name": "User 23",
+    "email": "user23@example.com",
+    "plan": "starter",
+    "locale": "en",
+    "account_status": "locked",
+    "created_at": "2026-04-19T07:53:26.809520+00:00",
+    "tags": [
+      "mobile"
+    ]
+  },
+  {
+    "id": "U-1024",
+    "name": "User 24",
+    "email": "user24@example.com",
+    "plan": "free",
+    "locale": "ru",
+    "account_status": "locked",
+    "created_at": "2025-01-13T07:53:26.809520+00:00",
+    "tags": [
+      "frequent_support"
+    ]
+  }
+]

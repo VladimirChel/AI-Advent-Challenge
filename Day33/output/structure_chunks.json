@@ -1,0 +1,72 @@
+{
+  "strategy": "structure",
+  "chunk_count": 6,
+  "items": [
+    {
+      "chunk_id": "faq_auth-structure-000",
+      "strategy": "structure",
+      "source": "D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day33\\data\\docs\\faq_auth.md",
+      "title": "faq_auth",
+      "section": "Login form reloads without sign-in",
+      "text": "If the login page reloads and the user stays on the sign-in form, first verify that:\n\n- the email and password are correct;\n- the browser accepts cookies;\n- the session cookie is not blocked by privacy extensions;\n- the service status page does not report an authentication incident.\n\nRecommended support action:\n\n1. Ask the user to clear auth cookies for the service.\n2. Ask the user to retry in a private browser window.\n3. If the issue persists, check whether the account is locked or pending verification.",
+      "start_char": 61,
+      "end_char": 570,
+      "token_estimate": 115
+    },
+    {
+      "chunk_id": "faq_auth-structure-001",
+      "strategy": "structure",
+      "source": "D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day33\\data\\docs\\faq_auth.md",
+      "title": "faq_auth",
+      "section": "Account locked after multiple attempts",
+      "text": "The service temporarily locks the account after repeated failed sign-in attempts.\n\nRecommended support action:\n\n1. Confirm the lock in the ticket or security logs.\n2. Ask the user to wait for the cooldown period or reset the password.\n3. Escalate if the user confirms a successful password reset but the lock remains active.",
+      "start_char": 615,
+      "end_char": 939,
+      "token_estimate": 69
+    },
+    {
+      "chunk_id": "faq_auth-structure-002",
+      "strategy": "structure",
+      "source": "D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day33\\data\\docs\\faq_auth.md",
+      "title": "faq_auth",
+      "section": "Password reset does not help",
+      "text": "If a new password is rejected right after reset:\n\n- confirm that the user opened the latest reset link;\n- confirm that the password was not copied with trailing spaces;\n- check whether the reset token expired before the user submitted the form.",
+      "start_char": 974,
+      "end_char": 1218,
+      "token_estimate": 56
+    },
+    {
+      "chunk_id": "faq_auth-structure-003",
+      "strategy": "structure",
+      "source": "D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day33\\data\\docs\\faq_auth.md",
+      "title": "faq_auth",
+      "section": "Two-factor code does not arrive",
+      "text": "If the 2FA code does not arrive:\n\n- check spam or quarantine folders;\n- confirm the mailbox address on the account;\n- verify there is no delivery incident on the notification side.",
+      "start_char": 1256,
+      "end_char": 1436,
+      "token_estimate": 42
+    },
+    {
+      "chunk_id": "faq_billing-structure-000",
+      "strategy": "structure",
+      "source": "D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day33\\data\\docs\\faq_billing.md",
+      "title": "faq_billing",
+      "section": "Payment declined",
+      "text": "If the payment is declined:\n\n- confirm the card supports online recurring charges;\n- ask the user to retry without VPN or ad blockers;\n- verify whether the billing profile has mandatory fields missing.\n\nEscalate to billing operations if the same card fails after a successful charge in the last 30 days.",
+      "start_char": 36,
+      "end_char": 339,
+      "token_estimate": 68
+    },
+    {
+      "chunk_id": "faq_profile-structure-000",
+      "strategy": "structure",
+      "source": "D:\\Yandex.Disk\\Docs\\AI\\AI Advent Challenge\\Repo\\AI Advent Challenge\\Day33\\data\\docs\\faq_profile.md",
+      "title": "faq_profile",
+      "section": "Profile changes are not saved",
+      "text": "If profile changes disappear after save:\n\n- confirm the user has permission to edit the profile;\n- ask the user to reload the page and repeat the save once;\n- verify whether the account is pending verification.",
+      "start_char": 49,
+      "end_char": 259,
+      "token_estimate": 49
+    }
+  ]
+}
