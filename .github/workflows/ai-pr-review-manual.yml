@@ -1,25 +1,8 @@
-name: AI PR Review Manual
+name: AI PR Review
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: Pull request number for comment publication
-        required: true
-        type: string
-      base_ref:
-        description: Base commit or branch
-        required: true
-        type: string
-      head_ref:
-        description: Head commit or branch
-        required: true
-        type: string
-      dry_run:
-        description: Skip the Ollama call and emit a placeholder review
-        required: false
-        default: false
-        type: boolean
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -27,6 +10,7 @@ permissions:
 
 jobs:
   ai-review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: self-hosted
 
     steps:
@@ -34,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -49,21 +33,16 @@ jobs:
           LLM_ASSISTANT_MODEL: openai/gpt-4.1-mini-2025-04-14
         run: |
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-          $extraArgs = @()
-          if ("${{ inputs.dry_run }}" -eq "true") {
-            $extraArgs += "--dry-run"
-          }
 
           python Day31/run_pr_review.py `
             --repo-root "$env:GITHUB_WORKSPACE" `
             --project-root "$env:GITHUB_WORKSPACE" `
             --project-id "ai-advent-challenge" `
             --index-dir "$env:GITHUB_WORKSPACE/Day31/indexes" `
-            --base-ref "${{ inputs.base_ref }}" `
-            --head-ref "${{ inputs.head_ref }}" `
+            --base-ref "${{ github.event.pull_request.base.sha }}" `
+            --head-ref "${{ github.event.pull_request.head.sha }}" `
             --output-file "$env:GITHUB_WORKSPACE/artifacts/ai-review.md" `
-            --metadata-file "$env:GITHUB_WORKSPACE/artifacts/ai-review.json" `
-            @extraArgs
+            --metadata-file "$env:GITHUB_WORKSPACE/artifacts/ai-review.json"
 
       - name: Upload review artifacts
         uses: actions/upload-artifact@v4
@@ -80,7 +59,7 @@ jobs:
             const marker = '<!-- ai-pr-review -->';
             const commentBody = `${marker}\n${body}`;
             const { owner, repo } = context.repo;
-            const issue_number = Number('${{ inputs.pr_number }}');
+            const issue_number = context.issue.number;
 
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner,
