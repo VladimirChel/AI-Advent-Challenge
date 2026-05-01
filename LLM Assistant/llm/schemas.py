@@ -71,6 +71,8 @@ class GenerateRequest(BaseModel):
     frequency_penalty: float = 0.0
     validation: ResponseValidationRules | None = None
     show_task_transition_in_chat: bool = TASK_SHOW_TRANSITIONS
+    include_sources_in_content: bool = True
+    include_citations_in_content: bool = True
     mcp: MCPSettings | None = None
     rag: RAGSettings | None = None
     project: ProjectSettings | None = None

@@ -271,7 +271,12 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
         latest_user_message = "\n".join(m.content for m in help_state.rewritten_live_messages if m.role == "user").strip()
         if rag_settings is not None:
             rag_question = build_task_aware_rag_query(latest_user_message, agent_ctx.working_memory)
-            rag_result = build_day22_rag_context(rag_question, rag_settings)
+            rag_result = build_day22_rag_context(
+                rag_question,
+                rag_settings,
+                include_sources_in_content=payload.include_sources_in_content,
+                include_citations_in_content=payload.include_citations_in_content,
+            )
         else:
             rag_result = build_day22_rag_context("", None)
 
@@ -351,7 +356,12 @@ def generate(payload: GenerateRequest, current_user: PublicUser = Depends(get_cu
             content = build_invariant_refusal(invariant_check)
 
     if rag_result.enabled:
-        content = enforce_rag_response_contract(content, rag_result)
+        content = enforce_rag_response_contract(
+            content,
+            rag_result,
+            include_sources_in_content=payload.include_sources_in_content,
+            include_citations_in_content=payload.include_citations_in_content,
+        )
 
     if payload.show_task_transition_in_chat and task_note and not task_transition_error:
         content = f"{content.rstrip()}\n\n{task_note}"

@@ -4,7 +4,7 @@ This folder contains the standalone project index builder used by `LLM Assistant
 
 It now also contains an MVP pipeline for local AI pull request review on a `self-hosted` GitHub Actions runner.
 
-## GUI client
+## CLI client
 
 Use [Day31/project_help_client.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challenge/Repo/AI%20Advent%20Challenge/Day31/project_help_client.py) for manual testing of the project-help flow.
 
@@ -12,7 +12,7 @@ Use [Day31/project_help_client.py](/D:/Yandex.Disk/Docs/AI/AI%20Advent%20Challen
 python project_help_client.py
 ```
 
-The client sends `project` in the request payload, so it is suitable for testing:
+The client is now console-based and sends `project` in the request payload, so it is suitable for testing:
 
 - `/help`
 - `/help <question>`
@@ -20,6 +20,14 @@ The client sends `project` in the request payload, so it is suitable for testing
 - `/exit`
 - external `project_root`
 - external `index_dir`
+
+Useful flags:
+
+- `--api-url http://127.0.0.1:8000`
+- `--project-id aspia`
+- `--project-root "D:\path\to\project"`
+- `--index-dir ".\indexes"`
+- `--prompt "/help Какая структура проекта?"`
 
 ## Environment config
 

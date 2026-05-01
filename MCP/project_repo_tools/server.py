@@ -5,11 +5,11 @@ import traceback
 from typing import Any
 
 from mcp_stdio import read_message, write_log, write_message
-from repo_tools import git_branch, list_dir, read_file
+from repo_tools import check_invariants, count_files, create_document, find_files, git_branch, list_dir, read_file, search_text, tree_dir
 
 
 SERVER_NAME = "project-repo-tools"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.3.0"
 
 TOOLS = [
     {
@@ -46,6 +46,102 @@ TOOLS = [
                 "max_chars": {"type": "integer", "minimum": 200, "maximum": 50000},
             },
             "required": ["project_root", "path"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "tree_dir",
+        "description": "Return a recursive directory tree inside the project root.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_root": {"type": "string"},
+                "path": {"type": "string"},
+                "max_depth": {"type": "integer", "minimum": 0, "maximum": 20},
+                "max_entries": {"type": "integer", "minimum": 1, "maximum": 10000},
+            },
+            "required": ["project_root"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "find_files",
+        "description": "Find files inside the project root by glob pattern, optional regex on filename or relative path. For README-like files anywhere in the repo, prefer glob='**/*' and name_regex='readme' with case_sensitive=false instead of a root-only glob like 'README*'.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_root": {"type": "string"},
+                "glob": {"type": "string"},
+                "max_results": {"type": "integer", "minimum": 1, "maximum": 5000},
+                "name_regex": {"type": "string"},
+                "path_regex": {"type": "string"},
+                "case_sensitive": {"type": "boolean"},
+            },
+            "required": ["project_root"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "count_files",
+        "description": "Count files inside the project root by glob pattern and optional case-insensitive regex filters. Use this for exact counts like README files. For README-like files anywhere in the repo, prefer glob='**/*' and name_regex='readme' with case_sensitive=false instead of a root-only glob like 'README*'.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_root": {"type": "string"},
+                "glob": {"type": "string"},
+                "name_regex": {"type": "string"},
+                "path_regex": {"type": "string"},
+                "case_sensitive": {"type": "boolean"},
+            },
+            "required": ["project_root"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "search_text",
+        "description": "Search text across project files using a regex pattern.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_root": {"type": "string"},
+                "pattern": {"type": "string"},
+                "glob": {"type": "string"},
+                "case_sensitive": {"type": "boolean"},
+                "max_results": {"type": "integer", "minimum": 1, "maximum": 2000},
+                "context_chars": {"type": "integer", "minimum": 20, "maximum": 500},
+            },
+            "required": ["project_root", "pattern"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "check_invariants",
+        "description": "Check files against JSON rules with required and forbidden regex patterns.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_root": {"type": "string"},
+                "rules_path": {"type": "string"},
+                "glob": {"type": "string"},
+                "max_files": {"type": "integer", "minimum": 1, "maximum": 5000},
+            },
+            "required": ["project_root", "rules_path"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "create_document",
+        "description": "Create only README.md or report.html inside the project root.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_root": {"type": "string"},
+                "path": {"type": "string"},
+                "file_type": {"type": "string", "enum": ["readme_md", "report_html"]},
+                "title": {"type": "string"},
+                "content": {"type": "string"},
+            },
+            "required": ["project_root", "path", "file_type"],
             "additionalProperties": False,
         },
     },
@@ -108,6 +204,84 @@ def handle_request(message: dict[str, Any]) -> dict[str, Any] | None:
                         arguments["project_root"],
                         arguments["path"],
                         int(arguments.get("max_chars", 12000)),
+                    )
+                ),
+            )
+        if tool_name == "tree_dir":
+            return success_response(
+                request_id,
+                tool_result(
+                    tree_dir(
+                        arguments["project_root"],
+                        arguments.get("path", "."),
+                        int(arguments.get("max_depth", 4)),
+                        int(arguments.get("max_entries", 500)),
+                    )
+                ),
+            )
+        if tool_name == "find_files":
+            return success_response(
+                request_id,
+                tool_result(
+                    find_files(
+                        arguments["project_root"],
+                        arguments.get("glob", "**/*"),
+                        int(arguments.get("max_results", 200)),
+                        arguments.get("name_regex"),
+                        arguments.get("path_regex"),
+                        bool(arguments.get("case_sensitive", False)),
+                    )
+                ),
+            )
+        if tool_name == "count_files":
+            return success_response(
+                request_id,
+                tool_result(
+                    count_files(
+                        arguments["project_root"],
+                        arguments.get("glob", "**/*"),
+                        arguments.get("name_regex"),
+                        arguments.get("path_regex"),
+                        bool(arguments.get("case_sensitive", False)),
+                    )
+                ),
+            )
+        if tool_name == "search_text":
+            return success_response(
+                request_id,
+                tool_result(
+                    search_text(
+                        arguments["project_root"],
+                        arguments["pattern"],
+                        arguments.get("glob", "**/*"),
+                        bool(arguments.get("case_sensitive", False)),
+                        int(arguments.get("max_results", 200)),
+                        int(arguments.get("context_chars", 120)),
+                    )
+                ),
+            )
+        if tool_name == "check_invariants":
+            return success_response(
+                request_id,
+                tool_result(
+                    check_invariants(
+                        arguments["project_root"],
+                        arguments["rules_path"],
+                        arguments.get("glob", "**/*"),
+                        int(arguments.get("max_files", 500)),
+                    )
+                ),
+            )
+        if tool_name == "create_document":
+            return success_response(
+                request_id,
+                tool_result(
+                    create_document(
+                        arguments["project_root"],
+                        arguments["path"],
+                        arguments["file_type"],
+                        str(arguments.get("title", "")),
+                        str(arguments.get("content", "")),
                     )
                 ),
             )

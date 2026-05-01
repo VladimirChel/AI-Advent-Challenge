@@ -181,7 +181,13 @@ def build_rag_citations(chunks: list[RAGChunkPayload]) -> list[CitationPayload]:
     ]
 
 
-def build_day22_rag_context(question: str, settings: RAGSettings | None) -> Day22RAGResult:
+def build_day22_rag_context(
+    question: str,
+    settings: RAGSettings | None,
+    *,
+    include_sources_in_content: bool = True,
+    include_citations_in_content: bool = True,
+) -> Day22RAGResult:
     if settings is None:
         return Day22RAGResult(enabled=False, chunks=[])
 
@@ -237,13 +243,20 @@ def build_day22_rag_context(question: str, settings: RAGSettings | None) -> Day2
             relevant_chunks,
             min_relevance_score=settings.min_relevance_score,
             below_threshold=below_threshold,
+            include_sources_in_content=include_sources_in_content,
+            include_citations_in_content=include_citations_in_content,
         ),
         below_threshold=below_threshold,
         min_relevance_score=settings.min_relevance_score,
     )
 
-
-def enforce_rag_response_contract(content: str, rag_result: Day22RAGResult) -> str:
+def enforce_rag_response_contract(
+    content: str,
+    rag_result: Day22RAGResult,
+    *,
+    include_sources_in_content: bool = True,
+    include_citations_in_content: bool = True,
+) -> str:
     if not rag_result.enabled:
         return content
 
@@ -257,9 +270,12 @@ def enforce_rag_response_contract(content: str, rag_result: Day22RAGResult) -> s
     if not body:
         body = "Краткий ответ по найденным документам не сформирован."
 
-    sources_block = _build_sources_block(rag_result.chunks)
-    quotes_block = _build_quotes_block(rag_result.chunks)
-    return f"{body}\n\nИсточники:\n{sources_block}\n\nЦитаты:\n{quotes_block}"
+    sections = [body]
+    if include_sources_in_content:
+        sections.append(f"Источники:\n{_build_sources_block(rag_result.chunks)}")
+    if include_citations_in_content:
+        sections.append(f"Цитаты:\n{_build_quotes_block(rag_result.chunks)}")
+    return "\n\n".join(section for section in sections if section).strip()
 
 
 def _load_day21_search_module() -> Any:
@@ -270,6 +286,28 @@ def _load_day21_search_module() -> Any:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _raise_rag_index_dimension_mismatch(
+    *,
+    index_file: Path,
+    metadata_file: Path,
+    embed_model: str,
+    query_dimension: int,
+    index_dimension: int,
+) -> None:
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "rag_index_dimension_mismatch:"
+            f"query_dimension={query_dimension};"
+            f"index_dimension={index_dimension};"
+            f"embed_model={embed_model};"
+            f"index_file={index_file};"
+            f"metadata_file={metadata_file};"
+            "hint=rebuild_index_or_align_embedding_model"
+        ),
+    )
 
 
 def _retrieve_chunks(
@@ -313,6 +351,25 @@ def _retrieve_chunks(
                 text=query_variant,
             )
             query_vector = np.array([query_embedding], dtype="float32")
+            if query_vector.ndim != 2 or query_vector.shape[0] != 1:
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "rag_invalid_query_embedding_shape:"
+                        f"shape={tuple(query_vector.shape)};"
+                        f"embed_model={embed_model}"
+                    ),
+                )
+            query_dimension = int(query_vector.shape[1])
+            index_dimension = int(index.d)
+            if query_dimension != index_dimension:
+                _raise_rag_index_dimension_mismatch(
+                    index_file=index_file,
+                    metadata_file=metadata_file,
+                    embed_model=embed_model,
+                    query_dimension=query_dimension,
+                    index_dimension=index_dimension,
+                )
             faiss.normalize_L2(query_vector)
             distances, indices = index.search(query_vector, search_depth)
             for score, idx in zip(distances[0], indices[0]):
@@ -908,6 +965,25 @@ def _retrieve_chunks(
                 text=query_variant,
             )
             query_vector = np.array([query_embedding], dtype="float32")
+            if query_vector.ndim != 2 or query_vector.shape[0] != 1:
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "rag_invalid_query_embedding_shape:"
+                        f"shape={tuple(query_vector.shape)};"
+                        f"embed_model={embed_model}"
+                    ),
+                )
+            query_dimension = int(query_vector.shape[1])
+            index_dimension = int(index.d)
+            if query_dimension != index_dimension:
+                _raise_rag_index_dimension_mismatch(
+                    index_file=index_file,
+                    metadata_file=metadata_file,
+                    embed_model=embed_model,
+                    query_dimension=query_dimension,
+                    index_dimension=index_dimension,
+                )
             faiss.normalize_L2(query_vector)
             distances, indices = index.search(query_vector, search_depth)
             for score, idx in zip(distances[0], indices[0]):
@@ -1001,6 +1077,8 @@ def _build_rag_context_message(
     *,
     min_relevance_score: float,
     below_threshold: bool,
+    include_sources_in_content: bool = True,
+    include_citations_in_content: bool = True,
 ) -> ChatMessage:
     chunk_blocks: list[str] = []
     for chunk in chunks:
@@ -1025,12 +1103,24 @@ def _build_rag_context_message(
             "Не придумывай факты и не добавляй источники."
         )
     else:
-        instruction = (
-            "Отвечай только по найденным чанкам. "
-            "После краткого ответа обязательно добавь раздел `Источники` со списком "
-            "`source | section | chunk_id` и раздел `Цитаты` с фрагментами из найденных чанков. "
-            "Не выдумывай источники и не цитируй ничего вне этого контекста."
-        )
+        required_sections: list[str] = []
+        if include_sources_in_content:
+            required_sections.append("раздел `Источники` со списком `source | section | chunk_id`")
+        if include_citations_in_content:
+            required_sections.append("раздел `Цитаты` с фрагментами из найденных чанков")
+        if required_sections:
+            instruction = (
+                "Отвечай только по найденным чанкам. "
+                "После краткого ответа обязательно добавь "
+                + " и ".join(required_sections)
+                + ". Не выдумывай источники и не цитируй ничего вне этого контекста."
+            )
+        else:
+            instruction = (
+                "Отвечай только по найденным чанкам. "
+                "Не добавляй разделы `Источники` и `Цитаты`. "
+                "Не выдумывай факты, источники и цитаты вне этого контекста."
+            )
     return ChatMessage(
         role="system",
         content=(

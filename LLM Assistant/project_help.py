@@ -99,6 +99,36 @@ def classify_project_help_route(question: str) -> str:
     if not text:
         return RAG_ROUTE
 
+    mcp_strong_terms = {
+        "сколько файлов",
+        "сколько readme",
+        "find all",
+        "count files",
+        "tree",
+        "дерево",
+        "tree_dir",
+        "find_files",
+        "search_text",
+        "usage",
+        "usages",
+        "используется",
+        "используются",
+        "где используется",
+        "все места",
+        "найти все",
+        "найди все",
+        "список файлов",
+        "все файлы",
+        "какие файлы",
+        "покажи дерево",
+        "обойди проект",
+        "инвариант",
+        "инварианты",
+        "правила для файлов",
+        "проверь файлы",
+        "проверить файлы",
+        "check invariants",
+    }
     mcp_terms = {
         "git",
         "branch",
@@ -141,8 +171,48 @@ def classify_project_help_route(question: str) -> str:
         "компонент",
     }
 
+    if any(term in text for term in mcp_strong_terms):
+        return MCP_ROUTE
+
     has_mcp = any(term in text for term in mcp_terms)
     has_rag = any(term in text for term in rag_terms)
+
+    count_or_search_intent = any(
+        term in text
+        for term in {
+            "сколько",
+            "count",
+            "найти",
+            "найди",
+            "поиск",
+            "search",
+            "список",
+            "list",
+            "где",
+            "where",
+            "использ",
+        }
+    )
+    filesystem_targets = any(
+        term in text
+        for term in {
+            "file",
+            "files",
+            "readme",
+            "md",
+            "каталог",
+            "папк",
+            "директор",
+            "folder",
+            "directory",
+            "repo",
+            "repository",
+            "компонент",
+            "api",
+        }
+    )
+    if count_or_search_intent and filesystem_targets:
+        return MCP_ROUTE
 
     if has_mcp and has_rag:
         return HYBRID_ROUTE
@@ -175,15 +245,23 @@ def _build_mode_message(active_mode: str, project_id: str | None) -> str:
 def build_project_help_system_message(project: ProjectSettings | None) -> ChatMessage | None:
     if project is None:
         return None
+    effective_root = _resolve_project_root(project)
     details: list[str] = [
         "You are in project help mode.",
         "Answer questions about the target project using the provided RAG context and MCP tool results.",
         "Do not invent files, APIs, modules, or architecture details that are not grounded in sources or tool output.",
         "When possible, mention concrete project paths in the answer.",
         "If the answer is not in the docs or tools, say that clearly.",
+        "If the user asks for exact file counts, exact file lists, recursive tree output, concrete file locations, usages, or invariant checks, prefer MCP tools over RAG summaries.",
+        "For questions like 'how many files', 'find all', 'where is this used', or 'show the tree', do not guess from documentation. Use MCP tools first and base the answer on their structured output.",
+        "If an MCP tool returns a count or file list, use that exact result in the answer.",
+        "For exact counts of files, prefer a dedicated counting tool over guessing or manually counting partial lists.",
+        "For README-like filenames or similar name matching, prefer case-insensitive regex-based file matching instead of a narrow case-sensitive glob.",
+        "For repository-wide README counts, a good MCP call pattern is count_files with glob='**/*', name_regex='readme', case_sensitive=false.",
+        "Do not use a root-only glob like 'README*' when the user asks about the whole project or repository.",
     ]
-    if project.root:
-        details.append(f"Always use this project_root when calling repo tools: {project.root}")
+    if effective_root:
+        details.append(f"Always use this project_root when calling repo tools: {effective_root}")
     if project.id:
         details.append(f"Project id: {project.id}")
     return ChatMessage(role="system", content="\n".join(details))
@@ -210,12 +288,17 @@ def resolve_project_rag_settings(
 
     if payload_rag is not None:
         if payload_rag.enabled:
+            explicit_fields = payload_rag.model_fields_set
+            requested_index_file = payload_rag.index_file if "index_file" in explicit_fields else None
+            requested_metadata_file = payload_rag.metadata_file if "metadata_file" in explicit_fields else None
+            requested_embed_model = payload_rag.embed_model if "embed_model" in explicit_fields else None
+            requested_ollama_url = payload_rag.ollama_url if "ollama_url" in explicit_fields else None
             return payload_rag.model_copy(
                 update={
-                    "index_file": payload_rag.index_file or index_file,
-                    "metadata_file": payload_rag.metadata_file or metadata_file,
-                    "embed_model": payload_rag.embed_model or embed_model or payload_rag.embed_model,
-                    "ollama_url": payload_rag.ollama_url or ollama_url or payload_rag.ollama_url,
+                    "index_file": requested_index_file or index_file or payload_rag.index_file,
+                    "metadata_file": requested_metadata_file or metadata_file or payload_rag.metadata_file,
+                    "embed_model": requested_embed_model or embed_model or payload_rag.embed_model,
+                    "ollama_url": requested_ollama_url or ollama_url or payload_rag.ollama_url,
                 }
             )
         return payload_rag
@@ -241,7 +324,8 @@ def resolve_project_mcp_settings(
 ) -> MCPSettings | None:
     if payload_mcp is not None:
         return payload_mcp
-    if not help_mode_active or project is None or not project.root:
+    effective_root = _resolve_project_root(project)
+    if not help_mode_active or project is None or not effective_root:
         return None
     return MCPSettings(
         enabled=True,
@@ -264,6 +348,18 @@ def _resolve_project_id(project: ProjectSettings | None) -> str | None:
     if project.root:
         return Path(project.root).resolve().name
     return None
+
+
+def _resolve_project_root(project: ProjectSettings | None) -> str | None:
+    if project is None:
+        return None
+    if project.root:
+        return project.root
+    if not project.index_dir:
+        return None
+    manifest = _load_manifest(project.index_dir)
+    value = str(manifest.get("project_root") or "").strip()
+    return value or None
 
 
 def _load_manifest(index_dir: str) -> dict[str, str]:

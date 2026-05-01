@@ -1,444 +1,680 @@
+#!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
-import queue
-import threading
+import os
+import re
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
-from tkinter import END, BOTH, LEFT, RIGHT, TOP, X, Y, BooleanVar, StringVar, Tk, Toplevel
-from tkinter import ttk
-from tkinter.scrolledtext import ScrolledText
 from typing import Any
+import urllib.error
+import urllib.request
 
-import requests
+
+DEFAULT_API_URL = os.environ.get("PROJECT_HELP_API_URL", "http://127.0.0.1:8000").rstrip("/")
+DEFAULT_MODEL = os.environ.get("PROJECT_HELP_MODEL", "gpt-4o-mini")
+DEFAULT_PROJECT_ID = os.environ.get("PROJECT_HELP_PROJECT_ID", "aspia")
+DEFAULT_HISTORY_DIR = Path.home() / ".project_help_cli"
 
 
-class ProjectHelpClient(Tk):
-    def __init__(self) -> None:
-        super().__init__()
-        self.title("Day31 Project Help Client")
-        self.geometry("1500x920")
-        self.minsize(1200, 760)
+def enable_windows_ansi() -> None:
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
 
-        self.session = requests.Session()
-        self.result_queue: queue.Queue[dict[str, Any]] = queue.Queue()
-        self.request_thread: threading.Thread | None = None
-        self.history: list[dict[str, str]] = []
-        self.last_raw_response: Any = None
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)
+        mode = ctypes.c_uint32()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)
+    except Exception:
+        pass
 
-        self.base_url_var = StringVar(value="http://127.0.0.1:8000")
-        self.timeout_var = StringVar(value="60")
-        self.token_var = StringVar()
-        self.provider_id_var = StringVar()
-        self.model_var = StringVar(value="gpt-4o-mini")
-        self.conversation_id_var = StringVar(value=str(uuid.uuid4()))
-        self.branch_id_var = StringVar(value="main")
-        self.task_id_var = StringVar()
-        self.project_id_var = StringVar(value="aspia")
-        self.project_root_var = StringVar()
-        self.index_dir_var = StringVar()
-        self.include_history_var = BooleanVar(value=True)
-        self.require_json_var = BooleanVar(value=False)
-        self.show_task_transition_var = BooleanVar(value=True)
 
-        self._build_layout()
-        self.after(150, self._poll_queue)
+enable_windows_ansi()
 
-    def _build_layout(self) -> None:
-        root = ttk.Frame(self, padding=10)
-        root.pack(fill=BOTH, expand=True)
 
-        root.columnconfigure(0, weight=0)
-        root.columnconfigure(1, weight=1)
-        root.rowconfigure(0, weight=1)
+class C:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    GRAY = "\033[90m"
 
-        sidebar = ttk.Frame(root, padding=(0, 0, 10, 0))
-        sidebar.grid(row=0, column=0, sticky="ns")
-        main = ttk.Frame(root)
-        main.grid(row=0, column=1, sticky="nsew")
-        main.columnconfigure(0, weight=1)
-        main.rowconfigure(1, weight=1)
 
-        self._build_sidebar(sidebar)
-        self._build_main(main)
+@dataclass
+class ProjectHelpState:
+    api_url: str
+    timeout: float = 60.0
+    token: str = ""
+    provider_id: str = ""
+    model: str = DEFAULT_MODEL
+    conversation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    branch_id: str = "main"
+    task_id: str = ""
+    project_id: str = DEFAULT_PROJECT_ID
+    project_root: str = ""
+    index_dir: str = ""
+    include_history: bool = True
+    require_json: bool = False
+    show_task_transition: bool = True
+    show_diagnostics: bool = True
+    allow_citations: bool = True
+    show_links: bool = True
+    auto_help_mode: bool = True
+    history: list[dict[str, str]] = field(default_factory=list)
+    last_response: Any = None
 
-    def _build_sidebar(self, parent: ttk.Frame) -> None:
-        sections = [
-            ("Connection", [
-                ("Base URL", self.base_url_var),
-                ("Timeout (sec)", self.timeout_var),
-                ("Bearer token", self.token_var),
-                ("Provider ID", self.provider_id_var),
-                ("Model", self.model_var),
-            ]),
-            ("Conversation", [
-                ("Conversation ID", self.conversation_id_var),
-                ("Branch ID", self.branch_id_var),
-                ("Task ID", self.task_id_var),
-            ]),
-            ("Project", [
-                ("Project ID", self.project_id_var),
-                ("Project root", self.project_root_var),
-                ("Index dir", self.index_dir_var),
-            ]),
-        ]
 
-        row = 0
-        for title, fields in sections:
-            frame = ttk.LabelFrame(parent, text=title, padding=10)
-            frame.grid(row=row, column=0, sticky="ew", pady=(0, 10))
-            frame.columnconfigure(0, weight=1)
-            inner_row = 0
-            for label, variable in fields:
-                ttk.Label(frame, text=label).grid(row=inner_row, column=0, sticky="w")
-                inner_row += 1
-                ttk.Entry(frame, textvariable=variable, width=42).grid(row=inner_row, column=0, sticky="ew", pady=(0, 8))
-                inner_row += 1
-            row += 1
+class ProjectHelpCLIError(RuntimeError):
+    pass
 
-        options = ttk.LabelFrame(parent, text="Options", padding=10)
-        options.grid(row=row, column=0, sticky="ew", pady=(0, 10))
-        ttk.Checkbutton(options, text="Include history", variable=self.include_history_var).pack(anchor="w")
-        ttk.Checkbutton(options, text="Require JSON", variable=self.require_json_var).pack(anchor="w")
-        ttk.Checkbutton(
-            options,
-            text="Show task transitions in chat",
-            variable=self.show_task_transition_var,
-        ).pack(anchor="w")
-        row += 1
 
-        buttons = ttk.LabelFrame(parent, text="Actions", padding=10)
-        buttons.grid(row=row, column=0, sticky="ew")
-        ttk.Button(buttons, text="Health", command=self.check_health).pack(fill=X, pady=2)
-        ttk.Button(buttons, text="New conversation", command=self.new_conversation).pack(fill=X, pady=2)
-        ttk.Button(buttons, text="Clear chat", command=self.clear_chat).pack(fill=X, pady=2)
-        ttk.Button(buttons, text="Copy payload", command=self.copy_payload).pack(fill=X, pady=2)
-        ttk.Button(buttons, text="Show raw", command=self.show_raw).pack(fill=X, pady=2)
-        ttk.Button(buttons, text="Preset /help", command=lambda: self.set_message("/help")).pack(fill=X, pady=2)
-        ttk.Button(buttons, text="Preset /mode", command=lambda: self.set_message("/mode")).pack(fill=X, pady=2)
-        ttk.Button(buttons, text="Preset /exit", command=lambda: self.set_message("/exit")).pack(fill=X, pady=2)
+class ProjectHelpAPIClient:
+    def __init__(self, state: ProjectHelpState) -> None:
+        self.state = state
 
-    def _build_main(self, parent: ttk.Frame) -> None:
-        top = ttk.Frame(parent)
-        top.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        top.columnconfigure(0, weight=1)
+    def health(self) -> dict[str, Any]:
+        request = urllib.request.Request(f"{self.state.api_url}/health", headers=self._headers(), method="GET")
+        return self._send(request)
 
-        self.status_label = ttk.Label(
-            top,
-            text="Status: ready",
-            anchor="w",
+    def generate(self, user_message: str) -> dict[str, Any] | str:
+        payload = build_payload(self.state, user_message)
+        request = urllib.request.Request(
+            f"{self.state.api_url}/generate",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=self._headers(content_type=True),
+            method="POST",
         )
-        self.status_label.grid(row=0, column=0, sticky="ew")
+        response = self._send(request)
+        self.state.conversation_id = str(payload["conversation_id"])
+        return response
 
-        panes = ttk.Panedwindow(parent, orient="horizontal")
-        panes.grid(row=1, column=0, sticky="nsew")
-
-        chat_frame = ttk.Frame(panes, padding=(0, 0, 10, 0))
-        info_frame = ttk.Frame(panes)
-        panes.add(chat_frame, weight=3)
-        panes.add(info_frame, weight=2)
-
-        chat_frame.columnconfigure(0, weight=1)
-        chat_frame.rowconfigure(0, weight=1)
-
-        self.chat_box = ScrolledText(chat_frame, wrap="word", height=30)
-        self.chat_box.grid(row=0, column=0, sticky="nsew")
-        self.chat_box.configure(state="disabled")
-
-        composer = ttk.Frame(chat_frame, padding=(0, 10, 0, 0))
-        composer.grid(row=1, column=0, sticky="ew")
-        composer.columnconfigure(0, weight=1)
-
-        self.message_input = ScrolledText(composer, wrap="word", height=10)
-        self.message_input.grid(row=0, column=0, columnspan=2, sticky="ew")
-        ttk.Button(composer, text="Send", command=self.send_message).grid(row=1, column=1, sticky="e", pady=(8, 0))
-
-        info_frame.columnconfigure(0, weight=1)
-        info_frame.rowconfigure(1, weight=1)
-
-        ttk.Label(info_frame, text="Service Info").grid(row=0, column=0, sticky="w")
-        self.info_box = ScrolledText(info_frame, wrap="word", height=30)
-        self.info_box.grid(row=1, column=0, sticky="nsew")
-        self.info_box.configure(state="normal")
-        self.info_box.insert("1.0", "Send a request to inspect response metadata, sources, and MCP usage.")
-        self.info_box.configure(state="disabled")
-
-    def set_status(self, text: str) -> None:
-        self.status_label.config(text=f"Status: {text}")
-
-    def set_message(self, text: str) -> None:
-        self.message_input.delete("1.0", END)
-        self.message_input.insert("1.0", text)
-
-    def append_chat(self, role: str, text: str) -> None:
-        self.chat_box.configure(state="normal")
-        self.chat_box.insert(END, f"{role}\n{text}\n\n")
-        self.chat_box.see(END)
-        self.chat_box.configure(state="disabled")
-
-    def _set_info(self, text: str) -> None:
-        self.info_box.configure(state="normal")
-        self.info_box.delete("1.0", END)
-        self.info_box.insert("1.0", text)
-        self.info_box.configure(state="disabled")
-
-    def _auth_headers(self) -> dict[str, str]:
+    def _headers(self, *, content_type: bool = False) -> dict[str, str]:
         headers: dict[str, str] = {}
-        token = self.token_var.get().strip()
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+        if content_type:
+            headers["Content-Type"] = "application/json"
+        if self.state.token.strip():
+            headers["Authorization"] = f"Bearer {self.state.token.strip()}"
         return headers
 
-    def new_conversation(self) -> None:
-        self.conversation_id_var.set(str(uuid.uuid4()))
-        self.history.clear()
-        self.chat_box.configure(state="normal")
-        self.chat_box.delete("1.0", END)
-        self.chat_box.configure(state="disabled")
-        self._set_info("New conversation created.")
-        self.set_status("new conversation created")
+    def _send(self, request: urllib.request.Request) -> dict[str, Any] | str:
+        try:
+            with urllib.request.urlopen(request, timeout=self.state.timeout) as response:
+                raw_body = response.read().decode("utf-8", errors="replace")
+                content_type = response.headers.get("Content-Type", "")
+        except urllib.error.HTTPError as exc:
+            details = exc.read().decode("utf-8", errors="replace")
+            raise ProjectHelpCLIError(f"Сервис вернул HTTP {exc.code}: {details}") from exc
+        except urllib.error.URLError as exc:
+            raise ProjectHelpCLIError(
+                f"Не удалось подключиться к Project Help сервису по адресу {self.state.api_url}."
+            ) from exc
 
-    def clear_chat(self) -> None:
-        self.history.clear()
-        self.chat_box.configure(state="normal")
-        self.chat_box.delete("1.0", END)
-        self.chat_box.configure(state="disabled")
-        self.last_raw_response = None
-        self._set_info("Chat cleared.")
-        self.set_status("chat cleared")
+        if "application/json" in content_type.lower():
+            try:
+                parsed = json.loads(raw_body)
+            except json.JSONDecodeError:
+                return raw_body
+            return parsed
+        return raw_body
 
-    def build_payload(self, user_message: str) -> dict[str, Any]:
-        messages: list[dict[str, str]] = []
-        if self.include_history_var.get():
-            messages.extend(self.history)
-        messages.append({"role": "user", "content": user_message})
 
-        payload: dict[str, Any] = {
-            "conversation_id": self.conversation_id_var.get().strip() or str(uuid.uuid4()),
-            "branch_id": self.branch_id_var.get().strip() or "main",
-            "task_id": self.task_id_var.get().strip() or None,
-            "model": self.model_var.get().strip(),
-            "messages": messages,
-            "temperature": 0.2,
-            "max_tokens": 800,
-            "top_p": 1.0,
-            "show_task_transition_in_chat": self.show_task_transition_var.get(),
-            "project": {
-                "id": self.project_id_var.get().strip() or None,
-                "root": self.project_root_var.get().strip() or None,
-                "index_dir": self.index_dir_var.get().strip() or None,
-            },
-        }
-        if self.provider_id_var.get().strip():
-            payload["provider_id"] = self.provider_id_var.get().strip()
-        if self.require_json_var.get():
-            payload["validation"] = {"require_json": True}
-        return payload
+BANNER = f"""{C.CYAN}{C.BOLD}
+╔══════════════════════════════════════════════════════╗
+║               PROJECT HELP CLIENT DAY31             ║
+║         консольный клиент для LLM Assistant         ║
+╚══════════════════════════════════════════════════════╝{C.RESET}
+"""
 
-    def copy_payload(self) -> None:
-        message = self.message_input.get("1.0", END).strip() or "/help Какая структура проекта?"
-        payload = self.build_payload(message)
-        self.clipboard_clear()
-        self.clipboard_append(json.dumps(payload, ensure_ascii=False, indent=2))
-        self.set_status("payload copied")
+HELP = f"""{C.BOLD}Команды:{C.RESET}
+  /help                  показать справку
+  /status                показать текущий контекст
+  /health                проверить backend
+  /backend <url>         сменить URL backend
+  /model <name>          сменить модель
+  /provider <id>         сменить provider_id
+  /project <id>          сменить project_id
+  /root <path>           установить project_root
+  /index <path>          установить index_dir
+  /branch <id>           сменить branch_id
+  /task <id>             сменить task_id
+  /conversation <id>     установить conversation_id вручную
+  /new                   начать новый диалог
+  /history on|off        включить/выключить history
+  /json on|off           включить/выключить require_json
+  /transitions on|off    включить/выключить show_task_transition_in_chat
+  /diagnostics on|off    включить/выключить диагностический вывод
+  /citations on|off      разрешить/запретить цитаты в ответе
+  /links on|off          показывать/скрывать ссылки и блок источников
+  /autohelp on|off       автоматически отправлять обычные вопросы как /help
+  /payload [text]        показать JSON payload
+  /raw                   показать сырой ответ последнего запроса
+  /save [file]           сохранить историю в JSON
+  /clear                 очистить историю сессии
+  /exit                  выход
+"""
 
-    def show_raw(self) -> None:
-        if self.last_raw_response is None:
-            self.set_status("raw response is empty")
-            return
-        popup = Toplevel(self)
-        popup.title("Raw response")
-        popup.geometry("900x640")
-        box = ScrolledText(popup, wrap="word")
-        box.pack(fill=BOTH, expand=True)
-        if isinstance(self.last_raw_response, (dict, list)):
-            box.insert("1.0", json.dumps(self.last_raw_response, ensure_ascii=False, indent=2))
+
+def now_stamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def resolve_history_dir() -> Path:
+    candidates = [
+        DEFAULT_HISTORY_DIR,
+        Path(__file__).resolve().parent / "output" / "history",
+    ]
+    for path in candidates:
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            return path
+        except PermissionError:
+            continue
+    raise ProjectHelpCLIError("Не удалось создать каталог для сохранения истории.")
+
+
+def print_info(text: str) -> None:
+    print(f"{C.GRAY}› {text}{C.RESET}")
+
+
+def print_error(text: str) -> None:
+    print(f"{C.RED}{C.BOLD}Ошибка:{C.RESET} {text}")
+
+
+def print_user_prompt(text: str) -> None:
+    print(f"{C.GREEN}{C.BOLD}you{C.RESET} {C.DIM}›{C.RESET} {text}")
+
+
+def print_assistant_header() -> None:
+    print(f"{C.MAGENTA}{C.BOLD}assistant{C.RESET} {C.DIM}›{C.RESET} ", end="")
+
+
+def print_sources_block(sources: list[dict[str, Any]]) -> None:
+    if not sources:
+        return
+    print(f"\n{C.BLUE}{C.BOLD}Источники:{C.RESET}")
+    for item in sources[:6]:
+        source = item.get("source", "")
+        section = item.get("section", "")
+        chunk_id = item.get("chunk_id", "")
+        score = item.get("score")
+        score_text = f" score={score:.3f}" if isinstance(score, (int, float)) else ""
+        chunk_text = f" | {chunk_id}" if chunk_id else ""
+        print(f"{C.BLUE}  - {source} | {section}{chunk_text}{score_text}{C.RESET}")
+
+
+def print_response_meta(body: dict[str, Any]) -> None:
+    usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+    meta_lines = [
+        f"request_id: {body.get('request_id') or '-'}",
+        f"active_mode: {body.get('active_mode') or '-'}",
+        f"project_id: {body.get('project_id') or '-'}",
+        f"project_help_route: {body.get('project_help_route') or '-'}",
+        f"provider_id: {body.get('provider_id') or '-'}",
+        f"model: {body.get('model') or '-'}",
+        f"latency_ms: {body.get('latency_ms') or '-'}",
+        f"rag_used: {body.get('rag_used')}",
+        f"rag_chunks_used: {body.get('rag_chunks_used')}",
+        f"mcp_used: {body.get('mcp_used')}",
+        f"mcp_tool_calls: {body.get('mcp_tool_calls')}",
+        f"tokens_total: {usage.get('total_tokens') or '-'}",
+    ]
+    print(f"\n{C.CYAN}{C.BOLD}Метаданные:{C.RESET}")
+    for line in meta_lines:
+        print(f"{C.CYAN}  {line}{C.RESET}")
+
+
+def print_status(state: ProjectHelpState) -> None:
+    print_info(f"Backend: {state.api_url}")
+    print_info(f"timeout: {state.timeout}")
+    print_info(f"provider_id: {state.provider_id or 'not set'}")
+    print_info(f"model: {state.model}")
+    print_info(f"conversation_id: {state.conversation_id}")
+    print_info(f"branch_id: {state.branch_id}")
+    print_info(f"task_id: {state.task_id or 'not set'}")
+    print_info(f"project_id: {state.project_id or 'not set'}")
+    print_info(f"project_root: {state.project_root or 'not set'}")
+    print_info(f"index_dir: {state.index_dir or 'not set'}")
+    print_info(f"include_history: {state.include_history}")
+    print_info(f"require_json: {state.require_json}")
+    print_info(f"show_task_transition: {state.show_task_transition}")
+    print_info(f"show_diagnostics: {state.show_diagnostics}")
+    print_info(f"allow_citations: {state.allow_citations}")
+    print_info(f"show_links: {state.show_links}")
+    print_info(f"auto_help_mode: {state.auto_help_mode}")
+    print_info(f"messages in session: {len(state.history)}")
+
+
+def normalize_toggle(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"on", "true", "1", "yes"}:
+        return True
+    if normalized in {"off", "false", "0", "no"}:
+        return False
+    raise ProjectHelpCLIError("Ожидалось on|off.")
+
+
+def extract_assistant_text(body: Any) -> str:
+    if isinstance(body, dict):
+        for key in ("content", "text", "message", "answer", "response"):
+            value = body.get(key)
+            if value:
+                return str(value).strip()
+        return ""
+    if body is None:
+        return ""
+    return str(body).strip()
+
+
+def apply_response_preferences(state: ProjectHelpState, text: str) -> str:
+    result = text
+    if not state.allow_citations:
+        result = re.sub(r"(?is)\n*цитаты:\n.*$", "", result)
+        result = "\n".join(line for line in result.splitlines() if not line.lstrip().startswith(">"))
+    if not state.show_links:
+        result = re.sub(r"(?is)\n*источники:\n.*?(?=\n[А-ЯA-Z][^:\n]{0,80}:\n|\Z)", "", result)
+        result = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1", result)
+        result = re.sub(r"https?://\S+", "", result)
+        result = re.sub(r"\bwww\.\S+", "", result)
+        result = re.sub(r"[ \t]+$", "", result, flags=re.MULTILINE)
+    result = re.sub(r"\n{3,}", "\n\n", result).strip()
+    return result
+
+
+def build_user_message(state: ProjectHelpState, prompt: str) -> str:
+    normalized_prompt = prompt.strip()
+    if state.auto_help_mode and normalized_prompt and not normalized_prompt.startswith("/help"):
+        normalized_prompt = f"/help {normalized_prompt}"
+
+    instructions: list[str] = []
+    if not state.allow_citations:
+        instructions.append("Не используй цитаты из документации или кода.")
+    if not state.show_links:
+        instructions.append("Не добавляй ссылки, URL и markdown-ссылки в ответ.")
+    if not instructions:
+        return normalized_prompt
+    suffix = "\n\nТребования к формату ответа:\n- " + "\n- ".join(instructions)
+    return normalized_prompt + suffix
+
+
+def resolve_effective_index_dir(state: ProjectHelpState) -> str:
+    raw_value = state.index_dir.strip()
+    if not raw_value:
+        return ""
+    base_path = Path(raw_value)
+    manifest_in_place = base_path / "manifest.json"
+    if manifest_in_place.exists():
+        return str(base_path)
+    if state.project_id.strip():
+        project_dir = base_path / state.project_id.strip()
+        if (project_dir / "manifest.json").exists():
+            return str(project_dir)
+    return raw_value
+
+
+def resolve_project_manifest_path(state: ProjectHelpState) -> Path | None:
+    if not state.index_dir.strip() or not state.project_id.strip():
+        return None
+    direct_manifest = Path(resolve_effective_index_dir(state)) / "manifest.json"
+    if direct_manifest.exists():
+        return direct_manifest
+    return Path(state.index_dir) / state.project_id / "manifest.json"
+
+
+def load_project_manifest(state: ProjectHelpState) -> dict[str, Any] | None:
+    manifest_path = resolve_project_manifest_path(state)
+    if manifest_path is None or not manifest_path.exists():
+        return None
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def print_manifest_summary(manifest: dict[str, Any]) -> None:
+    lines = [
+        f"manifest project_id: {manifest.get('project_id') or '-'}",
+        f"manifest project_root: {manifest.get('project_root') or '-'}",
+        f"embed_model: {manifest.get('embed_model') or '-'}",
+        f"embedding_dimension: {manifest.get('embedding_dimension') or '-'}",
+        f"index_file: {manifest.get('index_file') or '-'}",
+        f"chunks_file: {manifest.get('chunks_file') or '-'}",
+    ]
+    for line in lines:
+        print_info(line)
+    if manifest.get("index_file") is None:
+        print_info("warning: FAISS index file is missing, semantic RAG search may not work.")
+    if manifest.get("embedding_dimension") is None:
+        print_info("warning: embedding_dimension is missing in manifest.")
+
+
+def resolve_effective_project_root(state: ProjectHelpState) -> str:
+    explicit_root = state.project_root.strip()
+    if explicit_root:
+        return explicit_root
+    manifest = load_project_manifest(state)
+    if not manifest:
+        return ""
+    value = str(manifest.get("project_root") or "").strip()
+    return value
+
+
+def build_payload(state: ProjectHelpState, user_message: str) -> dict[str, Any]:
+    messages: list[dict[str, str]] = []
+    if state.include_history:
+        messages.extend(state.history)
+    messages.append({"role": "user", "content": build_user_message(state, user_message)})
+
+    payload: dict[str, Any] = {
+        "conversation_id": state.conversation_id or str(uuid.uuid4()),
+        "branch_id": state.branch_id or "main",
+        "task_id": state.task_id or None,
+        "model": state.model.strip(),
+        "messages": messages,
+        "temperature": 0.2,
+        "max_tokens": 800,
+        "top_p": 1.0,
+        "show_task_transition_in_chat": state.show_task_transition,
+        "include_sources_in_content": state.show_links,
+        "include_citations_in_content": state.allow_citations,
+        "project": {
+            "id": state.project_id.strip() or None,
+            "root": resolve_effective_project_root(state) or None,
+            "index_dir": resolve_effective_index_dir(state) or None,
+        },
+    }
+    if state.provider_id.strip():
+        payload["provider_id"] = state.provider_id.strip()
+    if state.require_json:
+        payload["validation"] = {"require_json": True}
+    return payload
+
+
+def save_chat(state: ProjectHelpState, file_path: str | None = None) -> Path:
+    history_dir = resolve_history_dir()
+    path = Path(file_path) if file_path else history_dir / f"project_help_chat_{now_stamp()}.json"
+    data = {
+        "saved_at": datetime.now().isoformat(timespec="seconds"),
+        "api_url": state.api_url,
+        "timeout": state.timeout,
+        "provider_id": state.provider_id,
+        "model": state.model,
+        "conversation_id": state.conversation_id,
+        "branch_id": state.branch_id,
+        "task_id": state.task_id,
+        "project_id": state.project_id,
+        "project_root": state.project_root,
+        "index_dir": state.index_dir,
+        "include_history": state.include_history,
+        "require_json": state.require_json,
+        "show_task_transition": state.show_task_transition,
+        "show_diagnostics": state.show_diagnostics,
+        "allow_citations": state.allow_citations,
+        "show_links": state.show_links,
+        "auto_help_mode": state.auto_help_mode,
+        "history": state.history,
+        "last_response": state.last_response,
+    }
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def handle_command(raw: str, state: ProjectHelpState, client: ProjectHelpAPIClient) -> bool:
+    parts = raw.strip().split(maxsplit=1)
+    cmd = parts[0].lower()
+    arg = parts[1].strip() if len(parts) > 1 else ""
+
+    if cmd == "/help":
+        print(HELP)
+    elif cmd == "/status":
+        print_status(state)
+    elif cmd == "/health":
+        body = client.health()
+        state.last_response = body
+        print_info(json.dumps(body, ensure_ascii=False, indent=2) if isinstance(body, dict) else str(body))
+    elif cmd == "/backend":
+        if not arg:
+            print_error("Укажи URL, например: /backend http://127.0.0.1:8000")
         else:
-            box.insert("1.0", str(self.last_raw_response))
-        box.configure(state="disabled")
-
-    def check_health(self) -> None:
-        self._run_request(
-            name="health",
-            method="GET",
-            url=self._join_url("/health"),
-            json_payload=None,
-            headers=self._auth_headers(),
-            user_message=None,
-        )
-
-    def send_message(self) -> None:
-        if self.request_thread and self.request_thread.is_alive():
-            self.set_status("wait for the current request")
-            return
-        message = self.message_input.get("1.0", END).strip()
-        if not message:
-            self.set_status("enter a message")
-            return
-        if not self.model_var.get().strip():
-            self.set_status("enter a model")
-            return
-        payload = self.build_payload(message)
-        self.conversation_id_var.set(str(payload["conversation_id"]))
-        self.append_chat("user", message)
-        self.message_input.delete("1.0", END)
-        self.set_status("sending request")
-        self._run_request(
-            name="generate",
-            method="POST",
-            url=self._join_url("/generate"),
-            json_payload=payload,
-            headers=self._auth_headers(),
-            user_message=message,
-        )
-
-    def _run_request(
-        self,
-        *,
-        name: str,
-        method: str,
-        url: str,
-        json_payload: dict[str, Any] | None,
-        headers: dict[str, str],
-        user_message: str | None,
-    ) -> None:
-        self.request_thread = threading.Thread(
-            target=self._request_worker,
-            kwargs={
-                "name": name,
-                "method": method,
-                "url": url,
-                "json_payload": json_payload,
-                "headers": headers,
-                "user_message": user_message,
-            },
-            daemon=True,
-        )
-        self.request_thread.start()
-
-    def _request_worker(
-        self,
-        *,
-        name: str,
-        method: str,
-        url: str,
-        json_payload: dict[str, Any] | None,
-        headers: dict[str, str],
-        user_message: str | None,
-    ) -> None:
-        try:
-            timeout = float(self.timeout_var.get().strip() or "60")
-        except ValueError:
-            timeout = 60.0
-
-        try:
-            if method == "GET":
-                response = self.session.get(url, headers=headers, timeout=timeout)
-            else:
-                response = self.session.post(url, json=json_payload, headers=headers, timeout=timeout)
-
-            content_type = response.headers.get("content-type", "")
-            if "application/json" in content_type.lower():
-                body: Any = response.json()
-            else:
-                body = response.text
-
-            self.result_queue.put(
-                {
-                    "ok": response.ok,
-                    "status_code": response.status_code,
-                    "name": name,
-                    "body": body,
-                    "user_message": user_message,
-                }
+            state.api_url = arg.rstrip("/")
+            client.health()
+            print_info(f"Новый backend: {state.api_url}")
+    elif cmd == "/model":
+        state.model = arg or DEFAULT_MODEL
+        print_info(f"model: {state.model}")
+    elif cmd == "/provider":
+        state.provider_id = arg
+        print_info(f"provider_id: {state.provider_id or 'cleared'}")
+    elif cmd == "/project":
+        state.project_id = arg
+        print_info(f"project_id: {state.project_id or 'cleared'}")
+    elif cmd == "/root":
+        state.project_root = arg
+        print_info(f"project_root: {state.project_root or 'cleared'}")
+    elif cmd == "/index":
+        state.index_dir = arg
+        print_info(f"index_dir: {state.index_dir or 'cleared'}")
+        effective_index_dir = resolve_effective_index_dir(state)
+        if effective_index_dir and effective_index_dir != state.index_dir:
+            print_info(f"resolved project index_dir: {effective_index_dir}")
+        manifest = load_project_manifest(state)
+        if manifest is None and state.index_dir and state.project_id:
+            print_info(f"manifest not found: {resolve_project_manifest_path(state)}")
+        elif manifest is not None:
+            print_manifest_summary(manifest)
+    elif cmd == "/branch":
+        state.branch_id = arg or "main"
+        print_info(f"branch_id: {state.branch_id}")
+    elif cmd == "/task":
+        state.task_id = arg
+        print_info(f"task_id: {state.task_id or 'cleared'}")
+    elif cmd == "/conversation":
+        state.conversation_id = arg or str(uuid.uuid4())
+        print_info(f"conversation_id: {state.conversation_id}")
+    elif cmd == "/new":
+        state.conversation_id = str(uuid.uuid4())
+        state.history.clear()
+        state.last_response = None
+        print_info(f"Новый диалог: {state.conversation_id}")
+    elif cmd == "/history":
+        state.include_history = normalize_toggle(arg)
+        print_info(f"include_history: {state.include_history}")
+    elif cmd == "/json":
+        state.require_json = normalize_toggle(arg)
+        print_info(f"require_json: {state.require_json}")
+    elif cmd == "/transitions":
+        state.show_task_transition = normalize_toggle(arg)
+        print_info(f"show_task_transition: {state.show_task_transition}")
+    elif cmd == "/diagnostics":
+        state.show_diagnostics = normalize_toggle(arg)
+        print_info(f"show_diagnostics: {state.show_diagnostics}")
+    elif cmd == "/citations":
+        state.allow_citations = normalize_toggle(arg)
+        print_info(f"allow_citations: {state.allow_citations}")
+    elif cmd == "/links":
+        state.show_links = normalize_toggle(arg)
+        print_info(f"show_links: {state.show_links}")
+    elif cmd == "/autohelp":
+        state.auto_help_mode = normalize_toggle(arg)
+        print_info(f"auto_help_mode: {state.auto_help_mode}")
+    elif cmd == "/payload":
+        text = arg or "/help Какая структура проекта?"
+        print(json.dumps(build_payload(state, text), ensure_ascii=False, indent=2))
+    elif cmd == "/raw":
+        if state.last_response is None:
+            print_info("Сырой ответ пока пуст.")
+        else:
+            print(
+                json.dumps(state.last_response, ensure_ascii=False, indent=2)
+                if isinstance(state.last_response, (dict, list))
+                else str(state.last_response)
             )
-        except Exception as exc:  # noqa: BLE001
-            self.result_queue.put(
-                {
-                    "ok": False,
-                    "status_code": None,
-                    "name": name,
-                    "body": str(exc),
-                    "user_message": user_message,
-                }
-            )
+    elif cmd == "/save":
+        path = save_chat(state, arg or None)
+        print_info(f"История сохранена: {path}")
+    elif cmd == "/clear":
+        state.history.clear()
+        state.last_response = None
+        print_info("История сессии очищена.")
+    elif cmd in {"/exit", "/quit"}:
+        return False
+    else:
+        print_error("Неизвестная команда. Введи /help")
+    return True
 
-    def _poll_queue(self) -> None:
+
+def run_prompt(state: ProjectHelpState, client: ProjectHelpAPIClient, prompt: str) -> int:
+    manifest = load_project_manifest(state)
+    if state.show_diagnostics and state.index_dir and state.project_id:
+        effective_index_dir = resolve_effective_index_dir(state)
+        if effective_index_dir and effective_index_dir != state.index_dir:
+            print_info(f"resolved project index_dir: {effective_index_dir}")
+        if manifest is None:
+            print_info(f"manifest not found: {resolve_project_manifest_path(state)}")
+        else:
+            print_manifest_summary(manifest)
+
+    print_user_prompt(prompt)
+    result = client.generate(prompt)
+    state.last_response = result
+
+    answer = apply_response_preferences(state, extract_assistant_text(result))
+    print_assistant_header()
+    print(answer or "[empty response]")
+
+    if state.include_history and answer:
+        state.history.append({"role": "user", "content": build_user_message(state, prompt)})
+        state.history.append({"role": "assistant", "content": answer})
+
+    if state.show_diagnostics and isinstance(result, dict):
+        print_response_meta(result)
+    if state.show_links and isinstance(result, dict):
+        print_sources_block(result.get("sources", []) if isinstance(result.get("sources"), list) else [])
+    return 0
+
+
+def interactive_loop(state: ProjectHelpState, client: ProjectHelpAPIClient) -> int:
+    print(BANNER)
+    print_info(f"Backend: {state.api_url}")
+    print_info("Введи /help для списка команд.")
+    print_info("Для project-help удобно спрашивать так: /help Какая структура проекта?")
+    print()
+
+    while True:
         try:
-            while True:
-                result = self.result_queue.get_nowait()
-                self._handle_request_result(result)
-        except queue.Empty:
-            pass
-        self.after(150, self._poll_queue)
+            raw = input(f"{C.GREEN}{C.BOLD}you{C.RESET} {C.DIM}›{C.RESET} ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nДо встречи.")
+            return 0
 
-    def _handle_request_result(self, result: dict[str, Any]) -> None:
-        self.last_raw_response = result["body"]
-        if result["name"] == "health":
-            self._set_info(self._format_body(result["body"]))
-            self.set_status("health loaded" if result["ok"] else "health failed")
-            return
+        if not raw:
+            continue
 
-        if not result["ok"]:
-            self.append_chat("error", self._format_error(result))
-            self._set_info(self._format_body(result["body"]))
-            self.set_status("request failed")
-            return
+        if raw.startswith("/"):
+            try:
+                keep_running = handle_command(raw, state, client)
+                if not keep_running:
+                    print("До встречи.")
+                    return 0
+            except ProjectHelpCLIError as exc:
+                print_error(str(exc))
+            print()
+            continue
 
-        body = result["body"]
-        if isinstance(body, dict):
-            assistant_text = str(body.get("content") or "")
-            if assistant_text:
-                self.append_chat("assistant", assistant_text)
-                if result["user_message"] is not None:
-                    self.history.append({"role": "user", "content": str(result["user_message"])})
-                    self.history.append({"role": "assistant", "content": assistant_text})
-            self._set_info(self._summarize_response(body))
-        else:
-            self.append_chat("assistant", str(body))
-            self._set_info(str(body))
-        self.set_status(f"response received ({result['status_code']})")
+        try:
+            run_prompt(state, client, raw)
+        except ProjectHelpCLIError as exc:
+            print_error(str(exc))
+        print()
 
-    def _summarize_response(self, body: dict[str, Any]) -> str:
-        usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
-        lines = [
-            f"request_id: {body.get('request_id')}",
-            f"active_mode: {body.get('active_mode')}",
-            f"project_id: {body.get('project_id')}",
-            f"project_help_route: {body.get('project_help_route')}",
-            f"latency_ms: {body.get('latency_ms')}",
-            f"provider_id: {body.get('provider_id')}",
-            f"model: {body.get('model')}",
-            f"rag_used: {body.get('rag_used')}",
-            f"rag_chunks_used: {body.get('rag_chunks_used')}",
-            f"mcp_used: {body.get('mcp_used')}",
-            f"mcp_tool_calls: {body.get('mcp_tool_calls')}",
-            f"tokens_total: {usage.get('total_tokens')}",
-            "",
-            "sources:",
-        ]
-        sources = body.get("sources") if isinstance(body.get("sources"), list) else []
-        if sources:
-            for source in sources:
-                lines.append(
-                    f"- {source.get('source')} | {source.get('section')} | {source.get('chunk_id')}"
-                )
-        else:
-            lines.append("- none")
-        return "\n".join(lines)
 
-    def _format_error(self, result: dict[str, Any]) -> str:
-        return f"HTTP {result.get('status_code')}\n{self._format_body(result.get('body'))}"
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="CLI-клиент для Day31 Project Help",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument("--api-url", default=DEFAULT_API_URL, help="Адрес backend LLM Assistant")
+    parser.add_argument("--timeout", type=float, default=120.0, help="Таймаут запроса в секундах")
+    parser.add_argument("--token", default="", help="Bearer token")
+    parser.add_argument("--provider-id", default="", help="provider_id для backend")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Модель для generate")
+    parser.add_argument("--conversation-id", default="", help="ID диалога")
+    parser.add_argument("--branch-id", default="main", help="branch_id")
+    parser.add_argument("--task-id", default="", help="task_id")
+    parser.add_argument("--project-id", default=DEFAULT_PROJECT_ID, help="project.id")
+    parser.add_argument("--project-root", default="", help="project.root")
+    parser.add_argument("--index-dir", default="", help="project.index_dir")
+    parser.add_argument("--no-history", action="store_true", help="Не отправлять историю предыдущих сообщений")
+    parser.add_argument("--require-json", action="store_true", help="Включить validation.require_json")
+    parser.add_argument(
+        "--hide-task-transitions",
+        action="store_true",
+        help="Отключить show_task_transition_in_chat",
+    )
+    parser.add_argument("--hide-diagnostics", action="store_true", help="Скрыть диагностический вывод")
+    parser.add_argument("--no-citations", action="store_true", help="Попросить backend не использовать цитаты")
+    parser.add_argument("--hide-links", action="store_true", help="Скрыть ссылки и блок источников")
+    parser.add_argument("--prompt", default="", help="Одноразовый запрос без интерактивного режима")
+    parser.add_argument("--save", default="", help="Сохранить историю в JSON-файл")
+    return parser.parse_args()
 
-    def _format_body(self, body: Any) -> str:
-        if isinstance(body, (dict, list)):
-            return json.dumps(body, ensure_ascii=False, indent=2)
-        return str(body)
 
-    def _join_url(self, path: str) -> str:
-        return self.base_url_var.get().rstrip("/") + path
+def main() -> int:
+    args = parse_args()
+    state = ProjectHelpState(
+        api_url=args.api_url.rstrip("/"),
+        timeout=args.timeout,
+        token=args.token,
+        provider_id=args.provider_id,
+        model=args.model,
+        conversation_id=args.conversation_id or str(uuid.uuid4()),
+        branch_id=args.branch_id,
+        task_id=args.task_id,
+        project_id=args.project_id,
+        project_root=args.project_root,
+        index_dir=args.index_dir,
+        include_history=not args.no_history,
+        require_json=args.require_json,
+        show_task_transition=not args.hide_task_transitions,
+        show_diagnostics=not args.hide_diagnostics,
+        allow_citations=not args.no_citations,
+        show_links=not args.hide_links,
+    )
+    client = ProjectHelpAPIClient(state)
+
+    try:
+        client.health()
+    except ProjectHelpCLIError as exc:
+        print_error(str(exc))
+        return 1
+
+    if args.prompt:
+        try:
+            code = run_prompt(state, client, args.prompt)
+        except ProjectHelpCLIError as exc:
+            print_error(str(exc))
+            return 1
+        if args.save:
+            path = save_chat(state, args.save)
+            print_info(f"История сохранена: {path}")
+        return code
+
+    code = interactive_loop(state, client)
+    if args.save:
+        path = save_chat(state, args.save)
+        print_info(f"История сохранена: {path}")
+    return code
 
 
 if __name__ == "__main__":
-    app = ProjectHelpClient()
-    app.mainloop()
+    raise SystemExit(main())
